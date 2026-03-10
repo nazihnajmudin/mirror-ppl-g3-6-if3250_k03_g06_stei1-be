@@ -15,6 +15,8 @@ stages:
 build-job:
   stage: build
   image: node:latest
+  tags: 
+    - docker
   script:
     - npm install
   artifacts:
@@ -23,6 +25,8 @@ build-job:
 
 run_tests:
   stage: test
+  tags:
+    - docker
   script:
     - docker compose up -d postgres-db
     - npm test
@@ -30,6 +34,8 @@ run_tests:
 
 deploy-job:
   stage: deploy
+  tags: 
+    - docker
   environment: production
   script:
     - docker compose up -d --build
