@@ -24,3 +24,24 @@ sast:
   stage: test
 include:
 - template: Auto-DevOps.gitlab-ci.yml
+
+# ==========================================
+# UNTUK EXPRESS.JS & PRISMA
+# ==========================================
+test:
+  image: node:20-alpine
+  stage: test
+  script:
+    - npm install
+    - npx prisma generate
+    - npm run test
+
+migrate_database:
+  image: node:20-alpine
+  stage: staging
+  script:
+    - npm install
+    - npx prisma generate
+    - npx prisma migrate deploy
+  only:
+    - develop # migrasi hanya berjalan jika di-merge ke branch develop
