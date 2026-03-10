@@ -18,7 +18,7 @@ cache:
 
 build-job:
   stage: build
-  image: node:latest
+  image: node:20-alpine
   tags: 
     - docker
   script:
@@ -26,13 +26,22 @@ build-job:
 
 run_tests:
   stage: test
+  image: node:20-alpine
   tags:
     - docker
+  services:
+    - postgres:15-alpine
+  variables:
+    POSTGRES_DB: akreditasi_stei
+    POSTGRES_USER: admin
+    POSTGRES_PASSWORD: password123
+    DATABASE_URL: postgresql://admin:password123@postgres:5432/akreditasi_stei
   script:
     - npm test
 
 deploy-job:
   stage: deploy
+  image: docker:24.0.5
   tags: 
     - docker
   environment: production
