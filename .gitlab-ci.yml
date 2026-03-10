@@ -5,7 +5,7 @@ variables:
   DOCKER_TLS_CERTDIR: ""
 
 services:
-  - docker:27-dind-alpine
+  - docker:27-dind
 
 stages:
   - build
