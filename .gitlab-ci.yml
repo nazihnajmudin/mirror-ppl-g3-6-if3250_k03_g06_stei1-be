@@ -1,11 +1,11 @@
-image: docker:28.0.0-alpine
+image: docker:27-alpine
 
 variables:
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: ""
 
 services:
-  - docker:28.0.0-dind
+  - docker:27-dind-alpine
 
 stages:
   - build
