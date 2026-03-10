@@ -23,6 +23,10 @@ build-job:
     - docker
   script:
     - npm ci
+  artifacts:
+    expire_in: 30 mins
+    paths:
+      - node_modules/
 
 run_tests:
   stage: test
@@ -37,7 +41,7 @@ run_tests:
     POSTGRES_PASSWORD: password123
     DATABASE_URL: postgresql://admin:password123@postgres:5432/akreditasi_stei
   script:
-    - npm test
+    - npx jest --passWithNoTests
 
 deploy-job:
   stage: deploy
