@@ -2,7 +2,7 @@ image: docker:24.0.5
 
 variables:
   DOCKER_DRIVER: overlay2
-  DOCKER_TLS_CERTDIR: "/certs"
+  DOCKER_TLS_CERTDIR: ""
 
 services:
   - docker:24.0.5-dind
@@ -12,16 +12,17 @@ stages:
   - test
   - deploy
 
+cache:
+  paths:
+    - node_modules/
+
 build-job:
   stage: build
   image: node:latest
   tags: 
     - docker
   script:
-    - npm install
-  artifacts:
-    paths:
-      - node_modules/
+    - npm ci
 
 run_tests:
   stage: test
