@@ -1,47 +1,49 @@
-# You can override the included template(s) by including variable overrides
-# SAST customization: https://docs.gitlab.com/user/application_security/sast/#available-cicd-variables
-# Secret Detection customization: https://docs.gitlab.com/user/application_security/secret_detection/pipeline/configure/
-# Dependency Scanning customization: https://docs.gitlab.com/user/application_security/dependency_scanning/#customizing-analyzer-behavior
-# Container Scanning customization: https://docs.gitlab.com/user/application_security/container_scanning/#customizing-analyzer-behavior
-# Note that environment variables can be set in several places
-# See https://docs.gitlab.com/ci/variables/#cicd-variable-precedence
-stages:
-- build
-- test
-- deploy
-- review
-- dast
-- staging
-- canary
-- production
-- incremental rollout 10%
-- incremental rollout 25%
-- incremental rollout 50%
-- incremental rollout 100%
-- performance
-- cleanup
-sast:
-  stage: test
-include:
-- template: Auto-DevOps.gitlab-ci.yml
+image: docker:24.0.5
 
-# ==========================================
-# UNTUK EXPRESS.JS & PRISMA
-# ==========================================
-test:
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+
+services:
+  - docker:24.0.5-dind
+
+stages:
+  - build
+  - test
+  - staging
+  - deploy
+
+build-job:
+  stage: build
   image: node:20-alpine
+  script:
+    - npm install
+  artifacts:
+    paths:
+      - node_modules/
+
+run_tests:
   stage: test
+  image: node:20-alpine
   script:
     - npm install
     - npx prisma generate
     - npm run test
 
 migrate_database:
-  image: node:20-alpine
   stage: staging
+  image: node:20-alpine
   script:
     - npm install
     - npx prisma generate
     - npx prisma migrate deploy
   only:
-    - develop # migrasi hanya berjalan jika di-merge ke branch develop
+    - develop
+
+deploy-job:
+  stage: deploy
+  environment: production
+  script:
+    - docker compose up -d --build
+  only:
+    - main
