@@ -1,4 +1,4 @@
-image: docker:28.0.0
+image: docker:28.0.0-alpine
 
 variables:
   DOCKER_DRIVER: overlay2
