@@ -1,11 +1,11 @@
-image: docker:24.0.5
+image: docker:27-alpine
 
 variables:
   DOCKER_DRIVER: overlay2
-  DOCKER_TLS_CERTDIR: "/certs"
+  DOCKER_TLS_CERTDIR: ""
 
 services:
-  - docker:24.0.5-dind
+  - docker:27-dind
 
 stages:
   - build
@@ -13,28 +13,35 @@ stages:
   - staging
   - deploy
 
+cache:
+  paths:
+    - node_modules/
+
 build-job:
   stage: build
   image: node:20-alpine
+  tags:
+    - docker
   script:
-    - npm install
-  artifacts:
-    paths:
-      - node_modules/
+    - npm ci
 
 run_tests:
   stage: test
-  image: node:20-alpine
+  tags:
+    - docker
   script:
-    - npm install
+    - docker compose up -d postgres-db
     - npx prisma generate
-    - npm run test
+    - npm test
+    - docker compose down
 
 migrate_database:
   stage: staging
   image: node:20-alpine
+  tags:
+    - docker
   script:
-    - npm install
+    - npm ci
     - npx prisma generate
     - npx prisma migrate deploy
   only:
@@ -42,6 +49,8 @@ migrate_database:
 
 deploy-job:
   stage: deploy
+  tags:
+    - docker
   environment: production
   script:
     - docker compose up -d --build
