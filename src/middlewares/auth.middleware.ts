@@ -1,0 +1,54 @@
+import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+import { Role } from '@prisma/client';
+import { errorResponse } from '../utils/response';
+
+export interface JwtPayload {
+  userId: number;
+  email: string;
+  role: Role;
+  prodiId?: number | null;
+}
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: JwtPayload;
+    }
+  }
+}
+
+export const authenticate = (req: Request, res: Response, next: NextFunction): void => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    errorResponse(res, 'Token autentikasi tidak ditemukan', 401);
+    return;
+  }
+  const token = authHeader.split(' ')[1];
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    errorResponse(res, 'Konfigurasi server tidak valid', 500);
+    return;
+  }
+  try {
+    const decoded = jwt.verify(token, secret) as JwtPayload;
+    req.user = decoded;
+    next();
+  } catch {
+    errorResponse(res, 'Token tidak valid atau telah kedaluwarsa', 401);
+  }
+};
+
+export const requireRole = (...roles: Role[]) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      errorResponse(res, 'Tidak terautentikasi', 401);
+      return;
+    }
+    if (!roles.includes(req.user.role)) {
+      errorResponse(res, 'Akses ditolak: role tidak memiliki izin', 403);
+      return;
+    }
+    next();
+  };
+};

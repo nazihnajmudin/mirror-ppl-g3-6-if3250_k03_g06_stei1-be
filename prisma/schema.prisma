@@ -35,11 +35,13 @@ model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
   name      String
+  password  String?
   role      Role
-  
-  prodiId   Int?     
+  isActive  Boolean  @default(true)
+
+  prodiId   Int?
   prodi     Prodi?   @relation(fields: [prodiId], references: [id])
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
