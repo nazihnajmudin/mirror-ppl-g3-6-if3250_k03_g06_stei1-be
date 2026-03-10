@@ -1,11 +1,11 @@
-image: docker:27-alpine
+image: docker:24.0.5
 
 variables:
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: ""
 
 services:
-  - docker:27-dind
+  - docker:24.0.5-dind
 
 stages:
   - build
@@ -29,9 +29,7 @@ run_tests:
   tags:
     - docker
   script:
-    - docker compose up -d postgres-db
     - npm test
-    - docker compose down
 
 deploy-job:
   stage: deploy
