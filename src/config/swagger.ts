@@ -1,5 +1,7 @@
 import swaggerJsdoc from 'swagger-jsdoc';
 import path from 'path';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const options: swaggerJsdoc.Options = {
   definition: {
@@ -12,7 +14,7 @@ const options: swaggerJsdoc.Options = {
     },
     servers: [
       {
-        url: process.env.API_URL || 'http://localhost:8000',
+        url: process.env.API_URL || `http://localhost:${process.env.PORT || 3001}`,
         description: 'Development server',
       },
     ],
@@ -112,6 +114,8 @@ const options: swaggerJsdoc.Options = {
   apis: [
     path.join(__dirname, '../routes/*.ts'),
     path.join(__dirname, '../routes/*.js'),
+    path.join(__dirname, '../controllers/*.ts'),
+    path.join(__dirname, '../controllers/*.js'),
   ],
 };
 
