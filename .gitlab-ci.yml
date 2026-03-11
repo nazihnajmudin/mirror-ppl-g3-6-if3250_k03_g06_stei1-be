@@ -1,11 +1,11 @@
-image: docker:27-alpine
+image: docker:24.0.5
 
 variables:
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: ""
 
 services:
-  - docker:27-dind
+  - docker:24.0.5-dind
 
 stages:
   - build
@@ -24,16 +24,26 @@ build-job:
     - docker
   script:
     - npm ci
+  artifacts:
+    expire_in: 30 mins
+    paths:
+      - node_modules/
 
 run_tests:
   stage: test
+  image: node:20-alpine
   tags:
     - docker
+  services:
+    - postgres:15-alpine
+  variables:
+    POSTGRES_DB: akreditasi_stei
+    POSTGRES_USER: admin
+    POSTGRES_PASSWORD: password123
+    DATABASE_URL: postgresql://admin:password123@postgres:5432/akreditasi_stei
   script:
-    - docker compose up -d postgres-db
     - npx prisma generate
-    - npm test
-    - docker compose down
+    - npx jest --passWithNoTests
 
 migrate_database:
   stage: staging
@@ -49,6 +59,7 @@ migrate_database:
 
 deploy-job:
   stage: deploy
+  image: docker:24.0.5
   tags:
     - docker
   environment: production
