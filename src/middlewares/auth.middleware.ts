@@ -52,3 +52,9 @@ export const requireRole = (...roles: Role[]) => {
     next();
   };
 };
+
+export const onlyPimpinan = requireRole('PIMPINAN');
+export const onlyAdminInstitusi = requireRole('ADMIN_INSTITUSI');
+export const pimpinanAndAdmin = requireRole('PIMPINAN', 'ADMIN_INSTITUSI');
+export const prodiStaff = requireRole('KAPRODI', 'ADMIN_PRODI', 'DOSEN');
+export const kaprodiAndAdmin = requireRole('KAPRODI', 'ADMIN_PRODI');
