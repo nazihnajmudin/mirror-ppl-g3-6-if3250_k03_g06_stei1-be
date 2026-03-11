@@ -10,6 +10,7 @@ services:
 stages:
   - build
   - test
+  - staging
   - deploy
 
 cache:
@@ -19,7 +20,7 @@ cache:
 build-job:
   stage: build
   image: node:20-alpine
-  tags: 
+  tags:
     - docker
   script:
     - npm ci
@@ -41,12 +42,25 @@ run_tests:
     POSTGRES_PASSWORD: password123
     DATABASE_URL: postgresql://admin:password123@postgres:5432/akreditasi_stei
   script:
+    - npx prisma generate
     - npx jest --passWithNoTests
+
+migrate_database:
+  stage: staging
+  image: node:20-alpine
+  tags:
+    - docker
+  script:
+    - npm ci
+    - npx prisma generate
+    - npx prisma migrate deploy
+  only:
+    - develop
 
 deploy-job:
   stage: deploy
   image: docker:24.0.5
-  tags: 
+  tags:
     - docker
   environment: production
   script:
