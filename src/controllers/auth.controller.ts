@@ -1,5 +1,6 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import * as authService from '../services/auth.service';
+import passport from '../config/passport.config';
 import { successResponse, errorResponse } from '../utils/response';
 
 /**
@@ -112,4 +113,74 @@ export const loginHandler = async (req: Request, res: Response): Promise<void> =
  */
 export const meHandler = (req: Request, res: Response): void => {
   successResponse(res, req.user, 'Data pengguna berhasil diambil');
+};
+
+/**
+ * @swagger
+ * /api/auth/sso:
+ *   get:
+ *     summary: Redirect ke halaman login SSO ITB
+ *     tags: [Auth]
+ *     security: []
+ *     responses:
+ *       302:
+ *         description: Redirect ke SSO ITB
+ */
+export const loginWithSSO = passport.authenticate('sso-itb', {
+  scope: ['openid', 'profile', 'email'],
+});
+
+/**
+ * @swagger
+ * /api/auth/callback:
+ *   get:
+ *     summary: Callback dari SSO ITB setelah login
+ *     tags: [Auth]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: Callback berhasil
+ */
+export const handleSSOCallback = [
+  passport.authenticate('sso-itb', {
+    failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=sso_failed`,
+    session: false,
+  }),
+  async (req: Request, res: Response): Promise<void> => {
+    const ssoProfile = req.user as Record<string, string> | undefined;
+
+    if (!ssoProfile?.email) {
+      errorResponse(res, 'Gagal mendapatkan profil dari SSO ITB', 401);
+      return;
+    }
+
+    // TODO (AU-02-02): cari user di DB, generate JWT, redirect ke frontend
+    res.json({
+      status: 'success',
+      message: 'SSO callback berhasil (JWT generation belum diimplementasi)',
+      ssoProfile,
+    });
+  },
+];
+
+/**
+ * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     summary: Logout
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logout berhasil
+ */
+export const logoutHandler = (req: Request, res: Response, next: NextFunction): void => {
+  req.logout((err) => {
+    if (err) {
+      next(err);
+      return;
+    }
+    successResponse(res, null, 'Logout berhasil');
+  });
 };
