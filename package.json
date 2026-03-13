@@ -14,6 +14,9 @@
     "db:generate": "prisma generate",
     "db:seed": "ts-node prisma/seed.ts"
   },
+  "prisma": {
+    "seed": "ts-node prisma/dummy.ts"
+  },
   "repository": {
     "type": "git",
     "url": "https://gitlab-edu.itb.ac.id/ppl-g3-6/if3250_k03_g06_stei1-be.git"
@@ -24,6 +27,7 @@
   "type": "commonjs",
   "dependencies": {
     "@prisma/client": "^6.19.2",
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
@@ -42,6 +46,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
