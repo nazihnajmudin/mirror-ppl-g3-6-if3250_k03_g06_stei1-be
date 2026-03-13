@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as accountService from '../services/account.service';
 import { successResponse, errorResponse } from '../utils/response';
+import { Role } from '@prisma/client';
 
 /**
  * @swagger
@@ -10,6 +11,23 @@ import { successResponse, errorResponse } from '../utils/response';
  *     tags: [Accounts]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: role
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [ADMIN_INSTITUSI, PIMPINAN, KAPRODI, ADMIN_PRODI, DOSEN]
+ *       - in: query
+ *         name: prodiId
+ *         required: false
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: isActive
+ *         required: false
+ *         schema:
+ *           type: boolean
  *     responses:
  *       200:
  *         description: Daftar semua pengguna berhasil diambil
@@ -20,9 +38,20 @@ import { successResponse, errorResponse } from '../utils/response';
  *       401:
  *         description: Tidak terautentikasi
  */
-export const getAllAccountsHandler = async (_req: Request, res: Response): Promise<void> => {
+export const getAllAccountsHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    const users = await accountService.getAllAccounts();
+    const role =
+      typeof req.query.role === 'string' && Object.values(Role).includes(req.query.role as Role)
+        ? (req.query.role as Role)
+        : undefined;
+    const prodiId =
+      typeof req.query.prodiId === 'string' && !isNaN(Number(req.query.prodiId))
+        ? Number(req.query.prodiId)
+        : undefined;
+    const isActive =
+      req.query.isActive === 'true' ? true : req.query.isActive === 'false' ? false : undefined;
+
+    const users = await accountService.getAllAccounts({ role, prodiId, isActive });
     successResponse(res, users, 'Daftar pengguna berhasil diambil');
   } catch (err: any) {
     errorResponse(res, err.message, 500);
@@ -47,6 +76,8 @@ export const getAllAccountsHandler = async (_req: Request, res: Response): Promi
  *     responses:
  *       200:
  *         description: Data pengguna berhasil diambil
+ *       400:
+ *         description: ID tidak valid
  *       404:
  *         description: Pengguna tidak ditemukan
  */
@@ -83,21 +114,18 @@ export const getAccountByIdHandler = async (req: Request, res: Response): Promis
  *       201:
  *         description: Akun pengguna berhasil dibuat
  *       400:
- *         description: Data tidak valid atau email sudah terdaftar
+ *         description: Data tidak valid
+ *       409:
+ *         description: Email sudah terdaftar
  */
 export const createAccountHandler = async (req: Request, res: Response): Promise<void> => {
-  const { email, name, password, role, prodiId } = req.body;
-
-  if (!email || !name || !role) {
-    errorResponse(res, 'Email, name, dan role wajib diisi', 400);
-    return;
-  }
-
   try {
-    const user = await accountService.createAccount({ email, name, password, role, prodiId });
+    const user = await accountService.createAccount(req.body);
     successResponse(res, user, 'Akun pengguna berhasil dibuat', 201);
   } catch (err: any) {
-    errorResponse(res, err.message, 400);
+    const message = err?.message || 'Gagal membuat akun pengguna';
+    const code = message.includes('sudah terdaftar') ? 409 : 400;
+    errorResponse(res, message, code);
   }
 };
 
@@ -124,6 +152,8 @@ export const createAccountHandler = async (req: Request, res: Response): Promise
  *     responses:
  *       200:
  *         description: Akun pengguna berhasil diperbarui
+ *       400:
+ *         description: ID tidak valid atau data update tidak sesuai aturan bisnis
  *       404:
  *         description: Pengguna tidak ditemukan
  */
@@ -134,13 +164,91 @@ export const updateAccountHandler = async (req: Request, res: Response): Promise
     return;
   }
 
-  const { name, role, isActive, prodiId } = req.body;
-
   try {
-    const user = await accountService.updateAccount(id, { name, role, isActive, prodiId });
+    const user = await accountService.updateAccount(id, req.body);
     successResponse(res, user, 'Akun pengguna berhasil diperbarui');
   } catch (err: any) {
-    errorResponse(res, err.message, 404);
+    const message = err?.message || 'Gagal memperbarui akun pengguna';
+    const code = message.includes('tidak ditemukan') ? 404 : 400;
+    errorResponse(res, message, code);
+  }
+};
+
+/**
+ * @swagger
+ * /api/accounts/{id}/deactivate:
+ *   patch:
+ *     summary: Menonaktifkan akun pengguna (soft delete)
+ *     tags: [Accounts]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Akun pengguna berhasil dinonaktifkan
+ *       400:
+ *         description: ID tidak valid
+ *       404:
+ *         description: Pengguna tidak ditemukan
+ */
+export const deactivateAccountHandler = async (req: Request, res: Response): Promise<void> => {
+  const id = parseInt(String(req.params.id), 10);
+  if (isNaN(id)) {
+    errorResponse(res, 'ID tidak valid', 400);
+    return;
+  }
+
+  try {
+    await accountService.deactivateAccount(id);
+    successResponse(res, null, 'Akun pengguna berhasil dinonaktifkan');
+  } catch (err: any) {
+    const message = err?.message || 'Gagal menonaktifkan akun pengguna';
+    const code = message.includes('tidak ditemukan') ? 404 : 400;
+    errorResponse(res, message, code);
+  }
+};
+
+/**
+ * @swagger
+ * /api/accounts/{id}/activate:
+ *   patch:
+ *     summary: Mengaktifkan kembali akun pengguna
+ *     tags: [Accounts]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Akun pengguna berhasil diaktifkan
+ *       400:
+ *         description: ID tidak valid
+ *       404:
+ *         description: Pengguna tidak ditemukan
+ */
+export const activateAccountHandler = async (req: Request, res: Response): Promise<void> => {
+  const id = parseInt(String(req.params.id), 10);
+  if (isNaN(id)) {
+    errorResponse(res, 'ID tidak valid', 400);
+    return;
+  }
+
+  try {
+    await accountService.activateAccount(id);
+    successResponse(res, null, 'Akun pengguna berhasil diaktifkan');
+  } catch (err: any) {
+    const message = err?.message || 'Gagal mengaktifkan akun pengguna';
+    const code = message.includes('tidak ditemukan') ? 404 : 400;
+    errorResponse(res, message, code);
   }
 };
 
@@ -161,6 +269,8 @@ export const updateAccountHandler = async (req: Request, res: Response): Promise
  *     responses:
  *       200:
  *         description: Akun pengguna berhasil dihapus
+ *       400:
+ *         description: ID tidak valid
  *       404:
  *         description: Pengguna tidak ditemukan
  */

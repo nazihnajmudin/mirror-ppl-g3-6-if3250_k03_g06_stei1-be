@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import * as authService from '../services/auth.service';
 import passport from '../config/passport.config';
+import { isSSOConfigured } from '../config/sso.config';
 import { successResponse, errorResponse } from '../utils/response';
 
 /**
@@ -125,10 +126,18 @@ export const meHandler = (req: Request, res: Response): void => {
  *     responses:
  *       302:
  *         description: Redirect ke SSO ITB
+ *       503:
+ *         description: SSO belum dikonfigurasi di server
  */
-export const loginWithSSO = passport.authenticate('sso-itb', {
-  scope: ['openid', 'profile', 'email'],
-});
+export const loginWithSSO = (req: Request, res: Response, next: NextFunction): void => {
+  if (!isSSOConfigured) {
+    errorResponse(res, 'SSO belum dikonfigurasi di server', 503);
+    return;
+  }
+  return passport.authenticate('sso-itb', {
+    scope: ['openid', 'profile', 'email'],
+  })(req, res, next);
+};
 
 /**
  * @swagger
@@ -140,12 +149,25 @@ export const loginWithSSO = passport.authenticate('sso-itb', {
  *     responses:
  *       200:
  *         description: Callback berhasil
+ *       302:
+ *         description: Redirect ke frontend login ketika autentikasi SSO gagal
+ *       401:
+ *         description: Profil SSO tidak valid/tidak memiliki email
+ *       503:
+ *         description: SSO belum dikonfigurasi di server
  */
 export const handleSSOCallback = [
-  passport.authenticate('sso-itb', {
-    failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=sso_failed`,
-    session: false,
-  }),
+  (req: Request, res: Response, next: NextFunction): void => {
+    if (!isSSOConfigured) {
+      errorResponse(res, 'SSO belum dikonfigurasi di server', 503);
+      return;
+    }
+
+    return passport.authenticate('sso-itb', {
+      failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=sso_failed`,
+      session: false,
+    })(req, res, next);
+  },
   async (req: Request, res: Response): Promise<void> => {
     const ssoProfile = req.user as Record<string, string> | undefined;
 

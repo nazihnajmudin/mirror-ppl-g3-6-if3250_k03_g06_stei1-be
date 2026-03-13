@@ -5,9 +5,13 @@ import {
   createAccountHandler,
   updateAccountHandler,
   deleteAccountHandler,
+  deactivateAccountHandler,
+  activateAccountHandler,
 } from '../controllers/account.controller';
 import { authenticate, requireRole } from '../middlewares/auth.middleware';
+import { validate } from '../middlewares/validate.middleware';
 import { Role } from '@prisma/client';
+import { createAccountSchema, updateAccountSchema } from '../validators/account.validator';
 
 /**
  * @swagger
@@ -24,8 +28,10 @@ router.use(requireRole(Role.ADMIN_INSTITUSI));
 
 router.get('/', getAllAccountsHandler);
 router.get('/:id', getAccountByIdHandler);
-router.post('/', createAccountHandler);
-router.put('/:id', updateAccountHandler);
+router.post('/', validate(createAccountSchema), createAccountHandler);
+router.put('/:id', validate(updateAccountSchema), updateAccountHandler);
+router.patch('/:id/deactivate', deactivateAccountHandler);
+router.patch('/:id/activate', activateAccountHandler);
 router.delete('/:id', deleteAccountHandler);
 
 export default router;
