@@ -24,14 +24,14 @@ describe('Auth Service - Unit Test', () => {
   });
 
   describe('login()', () => {
-    it('should throw error if user not found', async () => {
+    it('harus mengirim eror jika user tidak ditemukan', async () => {
       jest.mocked(prisma.user.findUnique).mockResolvedValue(null);
 
       await expect(authService.login({ email: 'test@itb.ac.id', password: '123' }))
         .rejects.toThrow('Email atau password salah');
     });
 
-    it('should throw error if account is inactive', async () => {
+    it('harus mengirim eror jika akun tidak aktif', async () => {
       const mockUserInactive = { 
         id: 1,
         email: 'test_account@itb.ac.id', 
@@ -50,7 +50,7 @@ describe('Auth Service - Unit Test', () => {
         .rejects.toThrow('Akun Anda dinonaktifkan');
     });
 
-    it('should return user and token on successful login', async () => {
+    it('harus mengembalikan user dan token jika berhasil', async () => {
       const mockUserActive = { 
         id: 1,
         email: 'test@itb.ac.id', 
