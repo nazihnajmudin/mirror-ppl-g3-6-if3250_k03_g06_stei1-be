@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import prisma from '../config/database';
+import prisma from '../config/database.config';
 import { Role } from '@prisma/client';
 import { JwtPayload } from '../middlewares/auth.middleware';
 
