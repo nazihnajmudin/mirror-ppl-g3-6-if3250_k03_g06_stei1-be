@@ -27,6 +27,13 @@ const options: swaggerJsdoc.Options = {
         },
       },
       schemas: {
+        ProdiSummary: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            nama: { type: 'string' },
+          },
+        },
         User: {
           type: 'object',
           properties: {
@@ -39,6 +46,9 @@ const options: swaggerJsdoc.Options = {
             },
             isActive: { type: 'boolean' },
             prodiId: { type: 'integer', nullable: true },
+            prodi: {
+              oneOf: [{ $ref: '#/components/schemas/ProdiSummary' }, { type: 'null' }],
+            },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },
           },
@@ -68,10 +78,17 @@ const options: swaggerJsdoc.Options = {
         CreateAccountRequest: {
           type: 'object',
           required: ['email', 'name', 'role'],
+          description:
+            'Untuk role DOSEN, KAPRODI, dan ADMIN_PRODI, field prodiId wajib diisi.',
           properties: {
-            email: { type: 'string', format: 'email' },
-            name: { type: 'string' },
-            password: { type: 'string', format: 'password' },
+            email: { type: 'string', format: 'email', example: 'dosen@itb.ac.id' },
+            name: { type: 'string', minLength: 3, maxLength: 100, example: 'Budi Santoso' },
+            password: {
+              type: 'string',
+              format: 'password',
+              minLength: 8,
+              example: 'password123',
+            },
             role: {
               type: 'string',
               enum: ['ADMIN_INSTITUSI', 'PIMPINAN', 'KAPRODI', 'ADMIN_PRODI', 'DOSEN'],
@@ -81,8 +98,10 @@ const options: swaggerJsdoc.Options = {
         },
         UpdateAccountRequest: {
           type: 'object',
+          description:
+            'Jika role diubah menjadi DOSEN, KAPRODI, atau ADMIN_PRODI maka prodiId wajib diisi.',
           properties: {
-            name: { type: 'string' },
+            name: { type: 'string', minLength: 3, maxLength: 100 },
             role: {
               type: 'string',
               enum: ['ADMIN_INSTITUSI', 'PIMPINAN', 'KAPRODI', 'ADMIN_PRODI', 'DOSEN'],

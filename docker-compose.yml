@@ -33,11 +33,16 @@ services:
       PORT: ${PORT:-8000}
       NODE_ENV: ${NODE_ENV:-development}
       FRONTEND_URL: ${FRONTEND_URL}
+      API_URL: ${API_URL:-http://localhost:8000}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-30d}
       SESSION_SECRET: ${SESSION_SECRET}
+      SSO_BASE_URL: ${SSO_BASE_URL:-https://sso.itb.ac.id}
+      SSO_CLIENT_ID: ${SSO_CLIENT_ID}
+      SSO_CLIENT_SECRET: ${SSO_CLIENT_SECRET}
+      SSO_CALLBACK_URL: ${SSO_CALLBACK_URL:-http://localhost:8000/api/auth/callback}
 
 volumes:
   pgdata:

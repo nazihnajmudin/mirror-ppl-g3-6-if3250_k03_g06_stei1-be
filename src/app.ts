@@ -6,7 +6,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import session from 'express-session';
 import swaggerUi from 'swagger-ui-express';
-import { swaggerSpec } from './config/swagger';
+import { swaggerSpec } from './config/swagger.config';
 import passport from './config/passport.config';
 import { sessionConfig } from './config/sso.config';
 import routes from './routes';
