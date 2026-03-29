@@ -14,34 +14,100 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Prodi {
-  id          Int      @id @default(autoincrement())
-  nama        String   @unique
-  akreditasi  String?  
-  users       User[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
+// ====================
+// ENUMS
+// ====================
 
 enum Role {
-  ADMIN_INSTITUSI
+  SUPER_ADMIN
   PIMPINAN
   KAPRODI
-  ADMIN_PRODI
-  DOSEN
+  TIM_PRODI
 }
 
+enum DocumentType {
+  LKPS
+  LED
+}
+
+enum DocumentStatus {
+  DRAFT
+  FINAL
+}
+
+// ====================
+// MODELS
+// ====================
+
+// Represents one study program in STEI ITB
+model Prodi {
+  id            String          @id @default(uuid())
+  fullname      String          @unique // e.g. "Teknik Infomatika"
+  abbreviation  String?                 // e.g. "IF", "EL", "EP"
+  degree        String?                 // e.g. "S1", "S2", "S3"
+  users         User[]                  // For Kaprodi
+  assignments   ProdiAssignment[]       // Tim Prodi assigned to this prodi
+  documents     Document[]              // All LKPS and LED documents of this prodi
+  accreditation AccreditationInfo?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+// Represents one user account
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String
-  password  String?
-  role      Role
-  isActive  Boolean  @default(true)
+  id            String          @id @default(uuid())
+  email         String          @unique
+  name          String
+  password      String
+  role          Role
+  isActive      Boolean         @default(true)
 
-  prodiId   Int?
-  prodi     Prodi?   @relation(fields: [prodiId], references: [id])
+  // Main relation to prodi, filled for Kaprodi
+  prodiId       String?
+  prodi         Prodi?          @relation(fields: [prodiId], references: [id])
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // Multi-prodi relation for Tim Prodi
+  assignments   ProdiAssignment[]
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+// Junction table for many-to-many relation betwwen User and Prodi
+model ProdiAssignment {
+  id            String          @id @default(uuid())
+  userId        String
+  prodiId       String
+  user          User            @relation(fields: [userId], references: [id])
+  prodi         Prodi           @relation(fields: [prodiId], references: [id])
+  createdAt     DateTime        @default(now())
+
+  @@unique([userId, prodiId])
+}
+
+// Stores active accreditation information per study program
+model AccreditationInfo {
+  id            String          @id @default(uuid())
+  prodiId       String          @unique
+  prodi         Prodi           @relation(fields: [prodiId], references: [id])
+  grade         String?
+  startDate     DateTime?
+  endDate       DateTime?
+  certificateUrl String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+// Stores LKPS or LED Document per study program
+model Document {
+  id            String          @id @default(uuid())
+  prodiId       String
+  prodi         Prodi           @relation(fields: [prodiId], references: [id])
+  type          DocumentType
+  status        DocumentStatus  @default(DRAFT)
+  content       Json?
+  lockedAt      DateTime?
+  lockedBy      String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 }
