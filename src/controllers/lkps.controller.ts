@@ -8,6 +8,22 @@ import { successResponse, errorResponse } from '../utils/response';
  *   get:
  *     summary: Mendapatkan data LKPS berdasarkan ID dokumen
  *     tags: [LKPS]
+ *     parameters:
+ *      - in: path
+ *        name: id
+ *        required: true
+ *        schema:
+ *          type: string
+ *        description: ID dokumen LKPS
+ *     responses:
+ *       200:
+ *         description: Data LKPS berhasil diambil
+ *       404:
+ *         description: LKPS tidak ditemukan
+ *       401:
+ *         description: Unauthorized 
+ *       500:
+ *         description: Terjadi kesalahan pada server
  */
 export const getLKPSHandler = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -25,6 +41,28 @@ export const getLKPSHandler = async (req: Request, res: Response): Promise<void>
  *   post:
  *     summary: Impor data LKPS dari file Excel
  *     tags: [LKPS]
+ *     consumes:
+ *       - multipart/form-data
+ *     parameters:
+ *       - in: formData
+ *         name: file
+ *         type: file
+ *         required: true
+ *         description: File Excel (.xlsx) yang berisi data LKPS
+ *       - in: formData
+ *         name: prodiId
+ *         type: string
+ *         required: false
+ *         description: ID program studi (opsional)
+ *     responses:
+ *       200:
+ *         description: Data LKPS berhasil diimpor
+ *       400:
+ *         description: File tidak ditemukan atau prodiId tidak valid
+ *       401:
+ *         description: Unauthorized 
+ *       500:
+ *         description: Terjadi kesalahan pada server
  */
 export const importLKPSHandler = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -52,6 +90,22 @@ export const importLKPSHandler = async (req: Request, res: Response): Promise<vo
  *   get:
  *     summary: Ekspor data LKPS ke file Excel
  *     tags: [LKPS]
+ *     parameters:
+ *      - in: path
+ *        name: id
+ *        required: true
+ *        schema:
+ *          type: string
+ *        description: ID dokumen LKPS
+ *     responses:
+ *       200:
+ *         description: File Excel LKPS berhasil diekspor
+ *       404:
+ *         description: LKPS tidak ditemukan
+ *       401:
+ *         description: Unauthorized 
+ *       500:
+ *         description: Terjadi kesalahan pada server
  */
 export const exportLKPSHandler = async (req: Request, res: Response): Promise<void> => {
   try {
