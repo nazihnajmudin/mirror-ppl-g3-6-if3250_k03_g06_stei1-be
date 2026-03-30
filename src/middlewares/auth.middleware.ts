@@ -4,10 +4,10 @@ import { Role } from '@prisma/client';
 import { errorResponse } from '../utils/response';
 
 export interface JwtPayload {
-  userId: number;
+  userId: string;
   email: string;
   role: Role;
-  prodiId?: number | null;
+  prodiId?: string | null;
 }
 
 declare global {
@@ -52,7 +52,7 @@ export const requireRole = (...roles: Role[]) => {
 };
 
 export const onlyPimpinan = requireRole('PIMPINAN');
-export const onlyAdminInstitusi = requireRole('ADMIN_INSTITUSI');
-export const pimpinanAndAdmin = requireRole('PIMPINAN', 'ADMIN_INSTITUSI');
-export const prodiStaff = requireRole('KAPRODI', 'ADMIN_PRODI', 'DOSEN');
-export const kaprodiAndAdmin = requireRole('KAPRODI', 'ADMIN_PRODI');
+export const onlyAdminInstitusi = requireRole('SUPER_ADMIN');
+export const pimpinanAndAdmin = requireRole('PIMPINAN', 'SUPER_ADMIN');
+export const prodiStaff = requireRole('KAPRODI', 'TIM_PRODI');
+export const kaprodiAndAdmin = requireRole('KAPRODI', 'TIM_PRODI');

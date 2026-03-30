@@ -1,12 +1,12 @@
 import bcrypt from 'bcryptjs';
 import prisma from '../config/database.config';
-import { Role } from '@prisma/client';
+import { Role, Prisma } from '@prisma/client';
 import { CreateAccountInput, UpdateAccountInput } from '../validators/account.validator';
 
 const SALT_ROUNDS = 10;
 
 const requiresProdiRole = (role: Role): boolean => {
-  return role === Role.DOSEN || role === Role.KAPRODI || role === Role.ADMIN_PRODI;
+  return role === Role.TIM_PRODI || role === Role.KAPRODI;
 };
 
 const userSelect = {
@@ -16,29 +16,30 @@ const userSelect = {
   role: true,
   isActive: true,
   prodiId: true,
-  prodi: { select: { id: true, nama: true } },
+  prodi: { select: { id: true, fullname: true } },
   createdAt: true,
   updatedAt: true,
 };
 
 export const getAllAccounts = async (filters?: {
   role?: Role;
-  prodiId?: number;
+  prodiId?: string;
   isActive?: boolean;
 }) => {
+  const where: Prisma.UserWhereInput = {
+    ...(filters?.role && { role: filters.role }),
+    ...(filters?.prodiId !== undefined && { prodiId: filters.prodiId }),
+    ...(filters?.isActive !== undefined && { isActive: filters.isActive }),
+  };
 
   return prisma.user.findMany({
-    where: {
-      ...(filters?.role && { role: filters.role }),
-      ...(filters?.prodiId !== undefined && { prodiId: filters.prodiId }),
-      ...(filters?.isActive !== undefined && { isActive: filters.isActive }),
-    },
+    where,
     select: userSelect,
     orderBy: { createdAt: 'desc' },
   });
 };
 
-export const getAccountById = async (id: number) => {
+export const getAccountById = async (id: string) => {
   const user = await prisma.user.findUnique({ where: { id }, select: userSelect });
   if (!user) throw new Error('Pengguna tidak ditemukan');
   return user;
@@ -68,7 +69,7 @@ export const createAccount = async (data: CreateAccountInput) => {
     data: {
       email: data.email,
       name: data.name,
-      password: hashedPassword,
+      password: hashedPassword ?? '',
       role: data.role,
       prodiId: data.prodiId ?? null,
     },
@@ -77,7 +78,7 @@ export const createAccount = async (data: CreateAccountInput) => {
 };
 
 export const updateAccount = async (
-  id: number,
+  id: string,
   data: UpdateAccountInput
 ) => {
   const existing = await prisma.user.findUnique({ where: { id } });
@@ -97,12 +98,15 @@ export const updateAccount = async (
 
   return prisma.user.update({
     where: { id },
-    data,
+    data: {
+      ...data,
+      prodiId: data.prodiId === undefined ? undefined : (data.prodiId ?? null),
+    },
     select: userSelect,
   });
 };
 
-export const deactivateAccount = async (id: number) => {
+export const deactivateAccount = async (id: string) => {
   await getAccountById(id);
   return prisma.user.update({
     where: { id },
@@ -111,7 +115,7 @@ export const deactivateAccount = async (id: number) => {
   });
 };
 
-export const activateAccount = async (id: number) => {
+export const activateAccount = async (id: string) => {
   await getAccountById(id);
   return prisma.user.update({
     where: { id },
@@ -120,7 +124,7 @@ export const activateAccount = async (id: number) => {
   });
 };
 
-export const deleteAccount = async (id: number) => {
+export const deleteAccount = async (id: string) => {
   const existing = await prisma.user.findUnique({ where: { id } });
   if (!existing) throw new Error('Pengguna tidak ditemukan');
   return prisma.user.delete({ where: { id }, select: userSelect });

@@ -1,25 +1,27 @@
 import request from 'supertest';
 import app from '../../app'; 
-import prisma from '../../config/database';
+import prisma from '../../config/database.config';
 
 describe('Account Management - Integration Test', () => {
   let adminToken: string;
-  let testUserId: number;
+  let testUserId: string;
 
   const testUser = {
     email: "admin_test@itb.ac.id",
     name: "Admin Test",
     password: "password123",
-    role: "ADMIN_INSTITUSI",
-    prodiId: 1
+    role: "SUPER_ADMIN" as any,
+    prodiId: "1"
   };
 
   beforeAll(async () => {
-    await prisma.prodi.upsert({
-      where: { id: 1 },
-      update: {},
-      create: { id: 1, nama: "Teknik Informatika" }
-    });
+    // Check if prodi exists
+    const existingProdi = await prisma.prodi.findUnique({ where: { id: "1" } });
+    if (!existingProdi) {
+      await prisma.prodi.create({
+        data: { id: "1", fullname: "Teknik Informatika", abbreviation: "IF", degree: "S1" }
+      });
+    }
 
     await prisma.user.deleteMany({ where: { email: testUser.email } });
     
@@ -53,8 +55,8 @@ describe('POST /api/accounts', () => {
         email: "staff_baru@itb.ac.id",
         name: "Dosen Baru",
         password: "password123",
-        role: "DOSEN",
-        prodiId: 1
+        role: "TIM_PRODI" as any,
+        prodiId: "1"
       };
 
       const res = await request(app)
@@ -80,8 +82,8 @@ describe('POST /api/accounts', () => {
         email: testUser.email, 
         name: "Duplicate",
         password: "password123",
-        role: "DOSEN",
-        prodiId: 1
+        role: "TIM_PRODI" as any,
+        prodiId: "1"
       };
 
       const res = await request(app)

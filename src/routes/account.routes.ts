@@ -22,9 +22,9 @@ import { createAccountSchema, updateAccountSchema } from '../validators/account.
 
 const router = Router();
 
-// All account management routes require authentication and ADMIN_INSTITUSI role
+// All account management routes require authentication and SUPER_ADMIN role
 router.use(authenticate);
-router.use(requireRole(Role.ADMIN_INSTITUSI));
+router.use(requireRole(Role.SUPER_ADMIN));
 
 router.get('/', getAllAccountsHandler);
 router.get('/:id', getAccountByIdHandler);

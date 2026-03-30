@@ -2,7 +2,7 @@ import { Role } from '@prisma/client';
 import { z } from 'zod';
 
 const requiresProdiRole = (role: Role): boolean => {
-  return role === Role.DOSEN || role === Role.KAPRODI || role === Role.ADMIN_PRODI;
+  return role === Role.TIM_PRODI || role === Role.KAPRODI;
 };
 
 export const createAccountSchema = z
@@ -11,7 +11,7 @@ export const createAccountSchema = z
     email: z.string().email('Format email tidak valid'),
     role: z.nativeEnum(Role),
     password: z.string().min(8, 'Password minimal 8 karakter').optional(),
-    prodiId: z.number().int().positive().optional().nullable(),
+    prodiId: z.string().uuid().optional().nullable(),
   })
   .refine(
     (data) => {
@@ -27,7 +27,7 @@ export const updateAccountSchema = z
   .object({
     name: z.string().min(3, 'Nama minimal 3 karakter').max(100).optional(),
     role: z.nativeEnum(Role).optional(),
-    prodiId: z.number().int().positive().optional().nullable(),
+    prodiId: z.string().uuid().optional().nullable(),
     isActive: z.boolean().optional(),
   })
   .refine(
