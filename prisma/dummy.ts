@@ -13,7 +13,7 @@ async function main() {
       email: email,
       name: "Admin Dummy", 
       password: hashedPassword,
-      role: 'ADMIN_INSTITUSI', 
+      role: 'SUPER_ADMIN',
       isActive: true,
     },
   });
