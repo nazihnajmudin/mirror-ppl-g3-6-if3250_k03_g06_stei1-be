@@ -1,6 +1,7 @@
 import { Role } from '@prisma/client';
 import { z } from 'zod';
 
+// Kaprodi and Tim Prodi must be associated with a study program
 const requiresProdiRole = (role: Role): boolean => {
   return role === Role.TIM_PRODI || role === Role.KAPRODI;
 };
@@ -10,11 +11,12 @@ export const createAccountSchema = z
     name: z.string().min(3, 'Nama minimal 3 karakter').max(100),
     email: z.string().email('Format email tidak valid'),
     role: z.nativeEnum(Role),
-    password: z.string().min(8, 'Password minimal 8 karakter').optional(),
-    prodiId: z.string().uuid().optional().nullable(),
+    password: z.string().min(8, 'Password minimal 8 karakter'),
+    prodiId: z.string().uuid('Format prodiId tidak valid').optional().nullable(),
   })
   .refine(
     (data) => {
+      // If the role requires a prodi (Kaprodi or Tim Prodi), prodiId must be provided
       if (requiresProdiRole(data.role) && !data.prodiId) {
         return false;
       }
@@ -27,7 +29,7 @@ export const updateAccountSchema = z
   .object({
     name: z.string().min(3, 'Nama minimal 3 karakter').max(100).optional(),
     role: z.nativeEnum(Role).optional(),
-    prodiId: z.string().uuid().optional().nullable(),
+    prodiId: z.string().uuid('Format prodiId tidak valid').optional().nullable(),
     isActive: z.boolean().optional(),
   })
   .refine(

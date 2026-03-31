@@ -21,6 +21,7 @@ const userSelect = {
   updatedAt: true,
 };
 
+// Get all accounts with optional filters
 export const getAllAccounts = async (filters?: {
   role?: Role;
   prodiId?: string;
@@ -39,16 +40,19 @@ export const getAllAccounts = async (filters?: {
   });
 };
 
+// Get a single account by Id
 export const getAccountById = async (id: string) => {
   const user = await prisma.user.findUnique({ where: { id }, select: userSelect });
   if (!user) throw new Error('Pengguna tidak ditemukan');
   return user;
 };
 
+// get a single account by email
 export const getAccountByEmail = async (email: string) => {
   return prisma.user.findUnique({ where: { email }, select: userSelect });
 };
 
+// Create a new account
 export const createAccount = async (data: CreateAccountInput) => {
   const existing = await prisma.user.findUnique({ where: { email: data.email } });
   if (existing) throw new Error('Email sudah terdaftar dalam sistem');
@@ -63,13 +67,13 @@ export const createAccount = async (data: CreateAccountInput) => {
     if (!prodi) throw new Error('Program studi tidak ditemukan');
   }
 
-  const hashedPassword = data.password ? await bcrypt.hash(data.password, SALT_ROUNDS) : null;
+  const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
 
   return prisma.user.create({
     data: {
       email: data.email,
       name: data.name,
-      password: hashedPassword ?? '',
+      password: hashedPassword,
       role: data.role,
       prodiId: data.prodiId ?? null,
     },
@@ -77,10 +81,8 @@ export const createAccount = async (data: CreateAccountInput) => {
   });
 };
 
-export const updateAccount = async (
-  id: string,
-  data: UpdateAccountInput
-) => {
+// Update an existing account
+export const updateAccount = async ( id: string, data: UpdateAccountInput) => {
   const existing = await prisma.user.findUnique({ where: { id } });
   if (!existing) throw new Error('Pengguna tidak ditemukan');
 
@@ -91,6 +93,7 @@ export const updateAccount = async (
 
   const effectiveRole = data.role ?? existing.role;
   const effectiveProdiId = data.prodiId === undefined ? existing.prodiId : data.prodiId;
+
   const requiresProdi = requiresProdiRole(effectiveRole);
   if (requiresProdi && !effectiveProdiId) {
     throw new Error('ProdiId wajib diisi untuk role ini');
@@ -106,6 +109,7 @@ export const updateAccount = async (
   });
 };
 
+// Deactivate an account (soft delete)
 export const deactivateAccount = async (id: string) => {
   await getAccountById(id);
   return prisma.user.update({
@@ -115,6 +119,7 @@ export const deactivateAccount = async (id: string) => {
   });
 };
 
+// Activate an account
 export const activateAccount = async (id: string) => {
   await getAccountById(id);
   return prisma.user.update({
@@ -124,6 +129,7 @@ export const activateAccount = async (id: string) => {
   });
 };
 
+// Permanently delete an account
 export const deleteAccount = async (id: string) => {
   const existing = await prisma.user.findUnique({ where: { id } });
   if (!existing) throw new Error('Pengguna tidak ditemukan');

@@ -24,10 +24,12 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
   }
   const token = authHeader.split(' ')[1];
   const secret = process.env.JWT_SECRET;
+
   if (!secret) {
     errorResponse(res, 'Konfigurasi server tidak valid', 500);
     return;
   }
+
   try {
     const decoded = jwt.verify(token, secret) as JwtPayload;
     req.user = decoded;
@@ -52,7 +54,7 @@ export const requireRole = (...roles: Role[]) => {
 };
 
 export const onlyPimpinan = requireRole('PIMPINAN');
-export const onlyAdminInstitusi = requireRole('SUPER_ADMIN');
-export const pimpinanAndAdmin = requireRole('PIMPINAN', 'SUPER_ADMIN');
+export const onlySuperAdmin = requireRole('SUPER_ADMIN');
+export const pimpinanAndSuperAdmin = requireRole('PIMPINAN', 'SUPER_ADMIN');
 export const prodiStaff = requireRole('KAPRODI', 'TIM_PRODI');
-export const kaprodiAndAdmin = requireRole('KAPRODI', 'TIM_PRODI');
+export const allRoles = requireRole('SUPER_ADMIN', 'PIMPINAN', 'KAPRODI', 'TIM_PRODI');
