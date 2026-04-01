@@ -21,7 +21,6 @@ const upload = multer({ storage: multer.memoryStorage() });
  *   description: Manajemen Laporan Kinerja Program Studi (LKPS)
  */
 
-// All LKPS routes require authentication
 router.use(authenticate);
 
 router.get('/:id', getLKPSHandler);
