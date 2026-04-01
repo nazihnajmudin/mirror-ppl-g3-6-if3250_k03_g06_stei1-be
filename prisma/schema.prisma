@@ -25,11 +25,6 @@ enum Role {
   TIM_PRODI
 }
 
-enum DocumentType {
-  LKPS
-  LED
-}
-
 enum DocumentStatus {
   DRAFT
   FINAL
@@ -47,8 +42,11 @@ model Prodi {
   degree        String?                 // e.g. "S1", "S2", "S3"
   users         User[]                  // For Kaprodi
   assignments   ProdiAssignment[]       // Tim Prodi assigned to this prodi
-  documents     Document[]              // All LKPS and LED documents of this prodi
   accreditation AccreditationInfo?
+  
+  documentLKPS  DocumentLKPS[]
+  documentLED   DocumentLED[]
+
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 }
@@ -68,6 +66,7 @@ model User {
 
   // Multi-prodi relation for Tim Prodi
   assignments   ProdiAssignment[]
+  documentLED   DocumentLED[]   // Audit trail pengunggah LED
 
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
@@ -99,16 +98,50 @@ model AccreditationInfo {
 }
 
 // Stores LKPS or LED Document per study program
-model Document {
+// ====================
+// DOCUMENTS
+// ====================
+
+// --- TABEL DOCUMENT LKPS ---
+model DocumentLKPS {
   id            String          @id @default(uuid())
   prodiId       String
   prodi         Prodi           @relation(fields: [prodiId], references: [id])
-  name          String?         // Optional name for the document, e.g. "LKPS 2024"
-  type          DocumentType
+  
+  name          String?         // e.g. "LKPS 2024"
   status        DocumentStatus  @default(DRAFT)
-  content       Json?
+  content       Json?           // Hasil parsing Excel LKPS
+  
   lockedAt      DateTime?
   lockedBy      String?
+  
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
+}
+
+// --- TABEL DOCUMENT LED ---
+model DocumentLED {
+  id            String          @id @default(uuid())
+  prodiId       String
+  prodi         Prodi           @relation(fields: [prodiId], references: [id])
+  
+  name          String?         // e.g. "LED_Draft.docx"
+  status        DocumentStatus  @default(DRAFT)
+  content       String?         // Menyimpan path file storage
+  
+  lockedAt      DateTime?
+  lockedBy      String?
+  
+  // --- Atribut Khusus LED ---
+  ukuran        Int?            // Ukuran file dalam bytes
+  periode       String          // Rentang/Tahun Akreditasi (e.g. "2025")
+  versi         Int             // Urutan revisi
+  
+  pengunggahId  String
+  pengunggah    User            @relation(fields: [pengunggahId], references: [id])
+  
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@unique([prodiId, periode, versi])
 }
