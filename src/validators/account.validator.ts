@@ -1,7 +1,6 @@
 import { Role } from '@prisma/client';
 import { z } from 'zod';
 
-// Kaprodi and Tim Prodi must be associated with a study program
 const requiresProdiRole = (role: Role): boolean => {
   return role === Role.TIM_PRODI || role === Role.KAPRODI;
 };
@@ -16,7 +15,6 @@ export const createAccountSchema = z
   })
   .refine(
     (data) => {
-      // If the role requires a prodi (Kaprodi or Tim Prodi), prodiId must be provided
       if (requiresProdiRole(data.role) && !data.prodiId) {
         return false;
       }

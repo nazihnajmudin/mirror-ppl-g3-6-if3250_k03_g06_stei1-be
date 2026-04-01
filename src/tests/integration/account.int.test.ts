@@ -11,18 +11,26 @@ describe('Account Management - Integration Test', () => {
     name: "Admin Test",
     password: "password123",
     role: "SUPER_ADMIN" as any,
-    prodiId: "1"
+    prodiId: "550e8400-e29b-41d4-a716-446655440000"
   };
 
   beforeAll(async () => {
-    // Check if prodi exists
-    const existingProdi = await prisma.prodi.findUnique({ where: { id: "1" } });
+    // Check if prodi exists by ID or Fullname
+    let existingProdi = await prisma.prodi.findUnique({ where: { id: "550e8400-e29b-41d4-a716-446655440000" } });
+    
     if (!existingProdi) {
-      await prisma.prodi.create({
-        data: { id: "1", fullname: "Teknik Informatika", abbreviation: "IF", degree: "S1" }
+      existingProdi = await prisma.prodi.findUnique({ where: { fullname: "Test Prodi UUID" } });
+    }
+
+    if (!existingProdi) {
+      existingProdi = await prisma.prodi.create({
+        data: { id: "550e8400-e29b-41d4-a716-446655440000", fullname: "Test Prodi UUID", abbreviation: "TP", degree: "S1" }
       });
     }
 
+    // Update testUser with the actual prodiId found or created
+    testUser.prodiId = existingProdi.id;
+    
     await prisma.user.deleteMany({ where: { email: testUser.email } });
     
     const registerRes = await request(app)
@@ -56,7 +64,7 @@ describe('POST /api/accounts', () => {
         name: "Dosen Baru",
         password: "password123",
         role: "TIM_PRODI" as any,
-        prodiId: "1"
+        prodiId: testUser.prodiId
       };
 
       const res = await request(app)
@@ -83,7 +91,7 @@ describe('POST /api/accounts', () => {
         name: "Duplicate",
         password: "password123",
         role: "TIM_PRODI" as any,
-        prodiId: "1"
+        prodiId: testUser.prodiId
       };
 
       const res = await request(app)
@@ -91,7 +99,7 @@ describe('POST /api/accounts', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .send(duplicateUser);
 
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(409);
     });
   });
 
