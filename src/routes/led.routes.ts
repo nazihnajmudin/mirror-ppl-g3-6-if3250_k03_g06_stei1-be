@@ -13,7 +13,7 @@ router.use(authenticate);
 // Import LED
 router.post(
     '/import',
-    requireRole(Role.ADMIN_INSTITUSI, Role.PIMPINAN, Role.KAPRODI, Role.ADMIN_PRODI),
+    requireRole(Role.KAPRODI, Role.TIM_PRODI),
     uploadLEDMiddleware.single('file'),
     validate(importLEDSchema),
     importLEDHandler

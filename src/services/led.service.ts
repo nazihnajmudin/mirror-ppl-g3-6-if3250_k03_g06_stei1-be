@@ -1,11 +1,12 @@
 import prisma from '../config/database.config';
 import { storageProvider } from '../utils/storage';
+import { DocumentStatus } from '@prisma/client';
 
 interface ImportLEDInput {
-  prodiId: number;
-  pengunggahId: number;
-  periode: string;
-  file: Express.Multer.File;
+    prodiId: string;
+    pengunggahId: string;
+    periode: string;
+    file: Express.Multer.File;
 }
 
 /**
@@ -15,46 +16,35 @@ interface ImportLEDInput {
  * @returns 
  */
 export const importLED = async (data: ImportLEDInput) => {
-    // Validasi Prodi dan Pengunggah
     const prodi = await prisma.prodi.findUnique({ where: { id: data.prodiId } });
     if (!prodi) throw new Error('Program studi tidak ditemukan');
 
     const user = await prisma.user.findUnique({ where: { id: data.pengunggahId } });
     if (!user) throw new Error('Pengunggah tidak ditemukan');
 
-    // Cari versi tertinggi
-    const latestDoc = await prisma.dokumenLED.findFirst({
-        where: {
-            prodiId: data.prodiId,
-            periode: data.periode,
-        },
-        orderBy: {
-            versi: 'desc',
-        },
+    const latestDoc = await prisma.documentLED.findFirst({
+        where: { prodiId: data.prodiId, periode: data.periode },
+        orderBy: { versi: 'desc' },
     });
 
-    // Versi Baru
     const newVersi = latestDoc ? latestDoc.versi + 1 : 1;
-
-    // Simpan file
     const savedFileName = await storageProvider.upload(data.file, 'led');
 
-    // Simpan metadata ke database
-    const dokumen = await prisma.dokumenLED.create({
-    data: {
-        namaFile: data.file.originalname,
-        pathFile: savedFileName,
-        ukuran: data.file.size,
-        periode: data.periode,
-        versi: newVersi,
-        prodiId: data.prodiId,
-        pengunggahId: data.pengunggahId,
-    },
-    // Untuk response
-    include: {
-        prodi: { select: { nama: true } },
-        pengunggah: { select: { name: true, email: true } },
-    }
+    const dokumen = await prisma.documentLED.create({
+        data: {
+            name: data.file.originalname, 
+            content: savedFileName,       // path/key dari file
+            ukuran: data.file.size,
+            periode: data.periode,
+            versi: newVersi,
+            status: DocumentStatus.DRAFT,
+            prodiId: data.prodiId,
+            pengunggahId: data.pengunggahId,
+        },
+        include: {
+            prodi: { select: { fullname: true } }, 
+            pengunggah: { select: { name: true, email: true } },
+        }
     });
 
     return dokumen;
@@ -67,28 +57,19 @@ export const importLED = async (data: ImportLEDInput) => {
  * @param periode 
  * @returns 
  */
-export const exportLED = async (prodiId: number, periode: string) => {
-    // Cari dokumen versi terbaru
-    const latestDoc = await prisma.dokumenLED.findFirst({
-        where: {
-            prodiId,
-            periode,
-        },
-        orderBy: {
-            versi: 'desc',
-        },
+export const exportLED = async (prodiId: string, periode: string) => {
+    const latestDoc = await prisma.documentLED.findFirst({
+        where: { prodiId, periode },
+        orderBy: { versi: 'desc' },
     });
 
-    if (!latestDoc) {
-    throw new Error(`Dokumen LED untuk periode ${periode} belum tersedia.`);
+    if (!latestDoc || !latestDoc.content) {
+        throw new Error(`Dokumen LED untuk periode ${periode} belum tersedia.`);
     }
 
-    const filePath = storageProvider.getFilePath(latestDoc.pathFile, 'led');
+    const filePath = storageProvider.getFilePath(latestDoc.content, 'led');
 
-    return {
-        dokumen: latestDoc,
-        filePath,
-    };
+    return { dokumen: latestDoc, filePath };
 };
 
 /**
@@ -98,17 +79,10 @@ export const exportLED = async (prodiId: number, periode: string) => {
  * @param periode 
  * @returns 
  */
-export const getLEDHistory = async (prodiId: number, periode: string) => {
-    return prisma.dokumenLED.findMany({
-        where: {
-            prodiId,
-            periode,
-        },
-        orderBy: {
-            versi: 'desc',
-        },
-        include: {
-            pengunggah: { select: { name: true, role: true } },
-        }
+export const getLEDHistory = async (prodiId: string, periode: string) => {
+    return prisma.documentLED.findMany({
+        where: { prodiId, periode },
+        orderBy: { versi: 'desc' },
+        include: { pengunggah: { select: { name: true, role: true } } }
     });
 };

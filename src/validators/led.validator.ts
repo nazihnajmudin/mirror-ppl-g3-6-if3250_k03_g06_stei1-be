@@ -1,10 +1,8 @@
 import { z } from 'zod';
 
 export const importLEDSchema = z.object({
-    prodiId: z.coerce
-        .number()
-        .int('prodiId harus berupa angka bulat')
-        .positive('prodiId tidak valid (harus lebih besar dari 0)'),
+    prodiId: z.string('prodiId wajib diisi')
+        .uuid('prodiId harus berupa format UUID yang valid'),
     periode: z.string()
         .min(4, 'Periode minimal 4 karakter (contoh: 2025)'),
 });

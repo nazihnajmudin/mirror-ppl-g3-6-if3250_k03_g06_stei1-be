@@ -53,21 +53,17 @@ import { successResponse, errorResponse } from '../utils/response';
  */
 export const importLEDHandler = async (req: Request, res: Response): Promise<void> => {
     try {
-        const pengunggahId = req.user?.userId;
-        const prodiId = parseInt(String(req.body.prodiId), 10);
+        const pengunggahId = String(req.user?.userId); 
+        const prodiId = String(req.body.prodiId);
         const periode = String(req.body.periode);
         const file = req.file; 
 
-        if (!pengunggahId) {
+        if (!req.user?.userId) {
             errorResponse(res, 'Pengguna tidak terautentikasi', 401);
             return;
         }
         if (!file) {
             errorResponse(res, 'File dokumen LED wajib diunggah', 400);
-            return;
-        }
-        if (isNaN(prodiId) || !req.body.periode) {
-            errorResponse(res, 'prodiId dan periode wajib diisi', 400);
             return;
         }
 
@@ -127,17 +123,19 @@ export const importLEDHandler = async (req: Request, res: Response): Promise<voi
  */
 export const exportLEDHandler = async (req: Request, res: Response): Promise<void> => {
     try {
-        const prodiId = parseInt(String(req.params.prodiId), 10);
+        const prodiId = String(req.params.prodiId);
         const periode = String(req.params.periode);
 
-        if (isNaN(prodiId) || !req.params.periode) {
+        if (!req.params.prodiId || !req.params.periode) {
             errorResponse(res, 'Parameter prodiId dan periode tidak valid', 400);
             return;
         }
 
         const { dokumen, filePath } = await ledService.exportLED(prodiId, periode);
 
-        res.download(filePath, dokumen.namaFile, (err) => {
+        const downloadName = dokumen.name || 'LED_Document.docx';
+
+        res.download(filePath, downloadName, (err) => {
             if (err && !res.headersSent) {
                 errorResponse(res, 'Terjadi kesalahan saat mengunduh file', 500);
             }
@@ -178,16 +176,16 @@ export const exportLEDHandler = async (req: Request, res: Response): Promise<voi
  */
 export const getLEDHistoryHandler = async (req: Request, res: Response): Promise<void> => {
     try {
-        const prodiId = parseInt(String(req.params.prodiId), 10);
+        const prodiId = String(req.params.prodiId);
         const periode = String(req.params.periode);
 
-        if (isNaN(prodiId) || !req.params.periode) {
+        if (!req.params.prodiId || !req.params.periode) {
             errorResponse(res, 'Parameter prodiId dan periode tidak valid', 400);
             return;
         }
+
         const history = await ledService.getLEDHistory(prodiId, periode);
         successResponse(res, history, 'Riwayat dokumen LED berhasil diambil');
-    
     } catch (err: any) {
         errorResponse(res, err.message, 500);
     }

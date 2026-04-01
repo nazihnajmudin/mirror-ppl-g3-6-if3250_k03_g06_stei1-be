@@ -1,12 +1,12 @@
 import ExcelJS from 'exceljs';
 import prisma from '../config/database.config';
-import { DocumentType, DocumentStatus } from '@prisma/client';
+import { DocumentStatus } from '@prisma/client';
 
 const TEMPLATE_PATH = '/home/wiweka/ppl/laporan-kinerja-program-studi-aps-akademik-vokasi-dan-psppi.xlsx';
 
 export const getLKPSById = async (id: string) => {
-  const doc = await prisma.document.findUnique({
-    where: { id, type: DocumentType.LKPS },
+  const doc = await prisma.documentLKPS.findUnique({
+    where: { id }, // Filter DocumentType dihapus
   });
   if (!doc) throw new Error('Dokumen LKPS tidak ditemukan');
   return doc;
@@ -48,10 +48,9 @@ export const importLKPS = async (buffer: any, prodiId: string) => {
   }
 
   // Create or Update Document
-  const doc = await prisma.document.create({
+  const doc = await prisma.documentLKPS.create({
     data: {
       prodiId,
-      type: DocumentType.LKPS,
       status: DocumentStatus.DRAFT,
       content: data,
     },

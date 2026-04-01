@@ -5,7 +5,11 @@ import {
   exportLKPSHandler, 
   getLKPSHandler 
 } from '../controllers/lkps.controller';
-import { authenticate } from '../middlewares/auth.middleware';
+import { authenticate, requireRole } from '../middlewares/auth.middleware';
+import { uploadLKPSMiddleware } from '../middlewares/upload.middleware';
+import { validate } from '../middlewares/validate.middleware';
+import { importLKPSSchema } from '../validators/lkps.validator';
+import { Role } from '@prisma/client';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -21,7 +25,13 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.use(authenticate);
 
 router.get('/:id', getLKPSHandler);
-router.post('/import', upload.single('file'), importLKPSHandler);
+router.post(
+  '/import', 
+  requireRole(Role.KAPRODI, Role.TIM_PRODI),
+  uploadLKPSMiddleware.single('file'), // Buffer
+  validate(importLKPSSchema),
+  importLKPSHandler
+);
 router.get('/export/:id', exportLKPSHandler);
 
 export default router;
