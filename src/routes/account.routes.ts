@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   getAllAccountsHandler,
+  getProdiOptionsHandler,
   getAccountByIdHandler,
   createAccountHandler,
   updateAccountHandler,
@@ -27,6 +28,7 @@ router.use(authenticate);
 router.use(requireRole(Role.SUPER_ADMIN));
 
 router.get('/', getAllAccountsHandler);
+router.get('/prodi-options', getProdiOptionsHandler);
 router.get('/:id', getAccountByIdHandler);
 router.post('/', validate(createAccountSchema), createAccountHandler);
 router.put('/:id', validate(updateAccountSchema), updateAccountHandler);
