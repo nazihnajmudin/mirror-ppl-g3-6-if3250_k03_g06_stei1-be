@@ -84,6 +84,7 @@ CREATE TABLE "Document" (
     "prodiId" TEXT NOT NULL,
     "type" "DocumentType" NOT NULL,
     "status" "DocumentStatus" NOT NULL DEFAULT 'DRAFT',
+    "name" TEXT NOT NULL,
     "content" JSONB,
     "lockedAt" TIMESTAMP(3),
     "lockedBy" TEXT,

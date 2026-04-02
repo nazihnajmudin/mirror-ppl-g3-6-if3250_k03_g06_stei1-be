@@ -180,6 +180,13 @@ async function main() {
       name: 'Kaprodi EB Dummy',
       role: 'KAPRODI',
       prodiKey: 'eb',
+    },
+    {
+      id: 'user-dummy-tim-prodi',
+      email: 'tim.prodi@email.com',
+      name: 'Tim Prodi Dummy',
+      role: 'TIM_PRODI',
+      prodiKey: 'if',
     }
   ];
 
