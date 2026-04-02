@@ -40,6 +40,18 @@ export const getAllAccounts = async (filters?: {
   });
 };
 
+export const getProdiOptions = async () => {
+  return prisma.prodi.findMany({
+    select: {
+      id: true,
+      fullname: true,
+      abbreviation: true,
+      degree: true,
+    },
+    orderBy: { fullname: 'asc' },
+  });
+};
+
 // Get a single account by Id
 export const getAccountById = async (id: string) => {
   const user = await prisma.user.findUnique({ where: { id }, select: userSelect });
