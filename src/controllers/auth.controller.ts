@@ -118,6 +118,28 @@ export const meHandler = (req: Request, res: Response): void => {
 
 /**
  * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     summary: Logout
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logout berhasil
+ */
+export const logoutHandler = (req: Request, res: Response, next: NextFunction): void => {
+  req.logout((err) => {
+    if (err) {
+      next(err);
+      return;
+    }
+    successResponse(res, null, 'Logout berhasil');
+  });
+};
+
+/**
+ * @swagger
  * /api/auth/sso:
  *   get:
  *     summary: Redirect ke halaman login SSO ITB
@@ -184,25 +206,3 @@ export const handleSSOCallback = [
     });
   },
 ];
-
-/**
- * @swagger
- * /api/auth/logout:
- *   post:
- *     summary: Logout
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Logout berhasil
- */
-export const logoutHandler = (req: Request, res: Response, next: NextFunction): void => {
-  req.logout((err) => {
-    if (err) {
-      next(err);
-      return;
-    }
-    successResponse(res, null, 'Logout berhasil');
-  });
-};
