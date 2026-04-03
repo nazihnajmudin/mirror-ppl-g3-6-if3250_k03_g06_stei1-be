@@ -86,3 +86,48 @@ export const getLEDHistory = async (prodiId: string, periode: string) => {
         include: { pengunggah: { select: { name: true, role: true } } }
     });
 };
+
+/**
+ * Mendapatkan daftar periode yang tersedia untuk sebuah Prodi
+ * Diambil dari riwayat dokumen yang ada + periode aktif dari Akreditasi
+ */
+export const getAvailablePeriods = async (prodiId: string): Promise<string[]> => {
+  // 1. Ambil periode unik dari dokumen yang sudah pernah diunggah
+  const docs = await prisma.documentLED.findMany({
+    where: { prodiId },
+    select: { periode: true },
+    distinct: ['periode'],
+  });
+  
+  const periods = new Set(docs.map((d) => d.periode));
+
+  // 2. Ambil tahun masa berlaku akreditasi (sebagai fallback agar tahun aktif selalu muncul di UI)
+  const akreditasi = await prisma.accreditationInfo.findUnique({
+    where: { prodiId },
+  });
+
+  if (akreditasi && akreditasi.endDate) {
+    const endYear = new Date(akreditasi.endDate).getFullYear().toString();
+    periods.add(endYear);
+  }
+
+  // 3. Konversi kembali ke array dan urutkan dari tahun terkecil ke terbesar
+  return Array.from(periods).sort();
+};
+
+/**
+ * Mengambil dokumen LED spesifik berdasarkan ID (Untuk melihat versi lama)
+ */
+export const exportLEDById = async (id: string) => {
+  const doc = await prisma.documentLED.findUnique({
+    where: { id },
+  });
+
+  if (!doc || !doc.content) {
+    throw new Error(`Dokumen LED tidak ditemukan.`);
+  }
+
+  const filePath = storageProvider.getFilePath(doc.content, 'led');
+
+  return { dokumen: doc, filePath };
+};
