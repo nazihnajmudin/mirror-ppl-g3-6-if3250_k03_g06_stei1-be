@@ -103,7 +103,7 @@ model Document {
   id               String          @id @default(uuid())
   prodiId          String
   prodi            Prodi           @relation(fields: [prodiId], references: [id])
-  name             String?         // Optional name for the document, e.g. "LKPS 2024"
+  name             String          // Required name for the document, e.g. "LKPS 2024"
   type             DocumentType
   status           DocumentStatus  @default(DRAFT)
   content          Json?           // Parsed summary for dashboard

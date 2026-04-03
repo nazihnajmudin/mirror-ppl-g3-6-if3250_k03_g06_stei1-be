@@ -5,6 +5,7 @@ import { errorResponse } from '../utils/response';
 
 export interface JwtPayload {
   userId: string;
+  name: string;
   email: string;
   role: Role;
   prodiId?: string | null;
@@ -16,6 +17,13 @@ declare global {
   }
 }
 
+/**
+ * Middleware untuk memverifikasi token JWT dan menambahkan informasi pengguna ke objek request.
+ * @param req 
+ * @param res 
+ * @param next 
+ * @returns 
+ */
 export const authenticate = (req: Request, res: Response, next: NextFunction): void => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {

@@ -46,8 +46,6 @@ DROP SEQUENCE "Prodi_id_seq";
 
 -- AlterTable
 ALTER TABLE "User" DROP CONSTRAINT "User_pkey",
-ADD COLUMN     "isActive" BOOLEAN NOT NULL DEFAULT true,
-ADD COLUMN     "password" TEXT NOT NULL,
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "id" SET DATA TYPE TEXT,
 ALTER COLUMN "prodiId" SET DATA TYPE TEXT,
@@ -84,6 +82,7 @@ CREATE TABLE "Document" (
     "prodiId" TEXT NOT NULL,
     "type" "DocumentType" NOT NULL,
     "status" "DocumentStatus" NOT NULL DEFAULT 'DRAFT',
+    "name" TEXT NOT NULL,
     "content" JSONB,
     "lockedAt" TIMESTAMP(3),
     "lockedBy" TEXT,

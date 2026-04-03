@@ -17,4 +17,4 @@ RUN npm run build
 EXPOSE 8000
 
 # Run migration then start server
-CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && npm start"]
