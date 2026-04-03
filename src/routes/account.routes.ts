@@ -7,6 +7,7 @@ import {
   deleteAccountHandler,
   deactivateAccountHandler,
   activateAccountHandler,
+  getProdiOptionsHandler,
 } from '../controllers/account.controller';
 import { authenticate, requireRole } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
@@ -17,7 +18,7 @@ import { createAccountSchema, updateAccountSchema } from '../validators/account.
  * @swagger
  * tags:
  *   name: Accounts
- *   description: Manajemen akun pengguna sistem (hanya Admin Institusi)
+ *   description: Manajemen akun pengguna sistem (hanya Super Admin)
  */
 
 const router = Router();
@@ -33,5 +34,6 @@ router.put('/:id', validate(updateAccountSchema), updateAccountHandler);
 router.patch('/:id/deactivate', deactivateAccountHandler);
 router.patch('/:id/activate', activateAccountHandler);
 router.delete('/:id', deleteAccountHandler);
+router.get('/prodi-options', getProdiOptionsHandler);
 
 export default router;

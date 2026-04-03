@@ -148,7 +148,7 @@ async function main() {
     },
     {
       id: 'user-dummy-kaprodi-sti',
-      email: 'kaprodi.sti@email.com',
+      email: 'kaprodi.ii@email.com',
       name: 'Kaprodi STI Dummy',
       role: 'KAPRODI',
       prodiKey: 'ii',
@@ -162,24 +162,31 @@ async function main() {
     },
     {
       id: 'user-dummy-kaprodi-tl',
-      email: 'kaprodi.tl@email.com',
-      name: 'Kaprodi TL Dummy',
+      email: 'kaprodi.ep@email.com',
+      name: 'Kaprodi EP Dummy',
       role: 'KAPRODI',
       prodiKey: 'ep',
     },
     {
       id: 'user-dummy-kaprodi-tt',
-      email: 'kaprodi.tt@email.com',
-      name: 'Kaprodi TT Dummy',
+      email: 'kaprodi.et@email.com',
+      name: 'Kaprodi ET Dummy',
       role: 'KAPRODI',
       prodiKey: 'et',
     },
     {
       id: 'user-dummy-kaprodi-bm',
-      email: 'kaprodi.bm@email.com',
-      name: 'Kaprodi BM Dummy',
+      email: 'kaprodi.eb@email.com',
+      name: 'Kaprodi EB Dummy',
       role: 'KAPRODI',
       prodiKey: 'eb',
+    },
+    {
+      id: 'user-dummy-tim-prodi',
+      email: 'tim.prodi@email.com',
+      name: 'Tim Prodi Dummy',
+      role: 'TIM_PRODI',
+      prodiKey: 'if',
     }
   ];
 

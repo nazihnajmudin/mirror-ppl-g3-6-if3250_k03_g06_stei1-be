@@ -4,6 +4,10 @@ export const successResponse = (res: Response, data: any, message = 'Berhasil', 
   return res.status(code).json({ status: 'success', message, data });
 };
 
-export const errorResponse = (res: Response, message: string, code = 400, error?: any) => {
-  return res.status(code).json({ status: 'error', message, error: error?.message || error });
+export const errorResponse = (res: Response, message: string, code = 400, details?: any) => {
+  const response: any = { status: 'error', message };
+  if (details) {
+    response.details = details;
+  }
+  return res.status(code).json(response);
 };
