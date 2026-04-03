@@ -194,75 +194,103 @@ export const getLEDHistoryHandler = async (req: Request, res: Response): Promise
 /**
  * @swagger
  * /api/led/periods/{prodiId}:
- * get:
- * summary: Mendapatkan daftar periode yang tersedia untuk Prodi
- * tags: [LED]
- * security:
- * - bearerAuth: []
- * parameters:
- * - in: path
- * name: prodiId
- * required: true
- * schema:
- * type: string
- * responses:
- * 200:
- * description: Daftar periode berhasil diambil
- * content:
- * application/json:
- * schema:
- * $ref: '#/components/schemas/SuccessResponse'
- * 400:
- * description: Parameter tidak valid
- * content:
- * application/json:
- * schema:
- * $ref: '#/components/schemas/ErrorResponse'
+ *   get:
+ *     summary: Mendapatkan daftar periode yang tersedia untuk Prodi
+ *     tags: 
+ *       - LED
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: prodiId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Daftar periode berhasil diambil
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       400:
+ *         description: Parameter tidak valid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 export const getAvailablePeriodsHandler = async (req: Request, res: Response): Promise<void> => {
-  try {
+    try {
     const prodiId = String(req.params.prodiId);
 
     if (!req.params.prodiId) {
-      errorResponse(res, 'Parameter prodiId wajib diisi', 400);
-      return;
+        errorResponse(res, 'Parameter prodiId wajib diisi', 400);
+        return;
     }
 
     const periods = await ledService.getAvailablePeriods(prodiId);
-    
-    // Jika masih kosong banget (prodi baru), berikan default tahun ini
+
+    // Jika masih kosong banget (prodi baru), defaultnya tahun ini
     const finalPeriods = periods.length > 0 ? periods : [new Date().getFullYear().toString()];
 
     successResponse(res, finalPeriods, 'Daftar periode berhasil diambil');
-  } catch (err: any) {
-    errorResponse(res, err.message, 500);
-  }
+    } catch (err: any) {
+        errorResponse(res, err.message, 500);
+    }
 };
 
 /**
  * @swagger
  * /api/led/export/document/{id}:
- * get:
- * summary: Export dokumen LED berdasarkan ID spesifik
- * tags: [LED]
- * security:
- * - bearerAuth: []
+ *   get:
+ *     summary: Export dokumen LED berdasarkan ID spesifik
+ *     tags:
+ *       - LED
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Dokumen berhasil diexport
+ *         content:
+ *           application/octet-stream:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       400:
+ *         description: Parameter ID tidak valid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Dokumen tidak ditemukan
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 export const exportLEDByIdHandler = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const id = String(req.params.id);
-    if (!id) {
-      errorResponse(res, 'Parameter ID dokumen wajib diisi', 400);
-      return;
+    try {
+        const id = String(req.params.id);
+        if (!id) {
+            errorResponse(res, 'Parameter ID dokumen wajib diisi', 400);
+            return;
+        }
+
+        const { dokumen, filePath } = await ledService.exportLEDById(id);
+        const downloadName = dokumen.name || `LED_Document_V${dokumen.versi}.docx`;
+
+        res.download(filePath, downloadName, (err) => {
+            if (err && !res.headersSent) errorResponse(res, 'Terjadi kesalahan saat mengunduh file', 500);
+        });
+    } catch (err: any) {
+        errorResponse(res, err.message, 404);
     }
-
-    const { dokumen, filePath } = await ledService.exportLEDById(id);
-    const downloadName = dokumen.name || `LED_Document_V${dokumen.versi}.docx`;
-
-    res.download(filePath, downloadName, (err) => {
-      if (err && !res.headersSent) errorResponse(res, 'Terjadi kesalahan saat mengunduh file', 500);
-    });
-  } catch (err: any) {
-    errorResponse(res, err.message, 404);
-  }
 };

@@ -244,6 +244,73 @@ async function main() {
 
   console.log('Dummy seed completed.');
   console.log('Default password for all dummy users: password123');
+
+  // ==========================================
+  // SEEDING DUMMY: DOKUMEN LED
+  // ==========================================
+  console.log('Seeding Document LED dummy data...');
+  
+  const kaprodiIf = await prisma.user.findUnique({ where: { email: 'kaprodi.if@email.com' } });
+  const prodiIfId = prodiIdByKey['if'];
+
+  if (kaprodiIf && prodiIfId) {
+    const dummyLEDs = [
+      {
+        name: 'LED_IF_Draft_v1.docx',
+        status: 'DRAFT' as any,
+        content: 'dummy-path/led_v1.docx',
+        ukuran: 1024 * 1024 * 1.5,
+        periode: '2025',
+        versi: 1,
+        pengunggahId: kaprodiIf.id,
+        prodiId: prodiIfId,
+      },
+      {
+        name: 'LED_IF_Revisi_v2.docx',
+        status: 'DRAFT' as any,
+        content: 'dummy-path/led_v2.docx',
+        ukuran: 1024 * 1024 * 2.1,
+        periode: '2025',
+        versi: 2,
+        pengunggahId: kaprodiIf.id,
+        prodiId: prodiIfId,
+      },
+      {
+        name: 'LED_IF_Final_v3.docx',
+        status: 'FINAL' as any,
+        content: 'dummy-path/led_v3.docx',
+        ukuran: 1024 * 1024 * 2.4,
+        periode: '2025',
+        versi: 3,
+        pengunggahId: kaprodiIf.id,
+        prodiId: prodiIfId,
+      },
+      {
+        name: 'LED_IF_2020_Final.docx',
+        status: 'FINAL' as any,
+        content: 'dummy-path/led_2020.docx',
+        ukuran: 1024 * 1024 * 1.8,
+        periode: '2020',
+        versi: 1,
+        pengunggahId: kaprodiIf.id,
+        prodiId: prodiIfId,
+      }
+    ];
+
+    for (const led of dummyLEDs) {
+      await prisma.documentLED.upsert({
+        where: {
+          prodiId_periode_versi: {
+            prodiId: led.prodiId,
+            periode: led.periode,
+            versi: led.versi
+          }
+        },
+        update: led,
+        create: led,
+      });
+    }
+  }
 }
 
 main()

@@ -90,44 +90,45 @@ export const getLEDHistory = async (prodiId: string, periode: string) => {
 /**
  * Mendapatkan daftar periode yang tersedia untuk sebuah Prodi
  * Diambil dari riwayat dokumen yang ada + periode aktif dari Akreditasi
+ * @param prodiId 
+ * @returns 
  */
 export const getAvailablePeriods = async (prodiId: string): Promise<string[]> => {
-  // 1. Ambil periode unik dari dokumen yang sudah pernah diunggah
-  const docs = await prisma.documentLED.findMany({
-    where: { prodiId },
-    select: { periode: true },
-    distinct: ['periode'],
-  });
-  
-  const periods = new Set(docs.map((d) => d.periode));
+    const docs = await prisma.documentLED.findMany({
+        where: { prodiId },
+        select: { periode: true },
+        distinct: ['periode'],
+    });
 
-  // 2. Ambil tahun masa berlaku akreditasi (sebagai fallback agar tahun aktif selalu muncul di UI)
-  const akreditasi = await prisma.accreditationInfo.findUnique({
-    where: { prodiId },
-  });
+    const periods = new Set(docs.map((d) => d.periode));
 
-  if (akreditasi && akreditasi.endDate) {
-    const endYear = new Date(akreditasi.endDate).getFullYear().toString();
-    periods.add(endYear);
-  }
+    const akreditasi = await prisma.accreditationInfo.findUnique({
+        where: { prodiId },
+    });
 
-  // 3. Konversi kembali ke array dan urutkan dari tahun terkecil ke terbesar
-  return Array.from(periods).sort();
+    if (akreditasi && akreditasi.endDate) {
+        const endYear = new Date(akreditasi.endDate).getFullYear().toString();
+        periods.add(endYear);
+    }
+
+    return Array.from(periods).sort();
 };
 
 /**
- * Mengambil dokumen LED spesifik berdasarkan ID (Untuk melihat versi lama)
+ * Mengambil dokumen LED spesifik berdasarkan ID (buat liat versi lama)
+ * @param id 
+ * @returns 
  */
 export const exportLEDById = async (id: string) => {
-  const doc = await prisma.documentLED.findUnique({
-    where: { id },
-  });
+    const doc = await prisma.documentLED.findUnique({
+        where: { id },
+    });
 
-  if (!doc || !doc.content) {
-    throw new Error(`Dokumen LED tidak ditemukan.`);
-  }
+    if (!doc || !doc.content) {
+        throw new Error(`Dokumen LED tidak ditemukan.`);
+    }
 
-  const filePath = storageProvider.getFilePath(doc.content, 'led');
+    const filePath = storageProvider.getFilePath(doc.content, 'led');
 
-  return { dokumen: doc, filePath };
+    return { dokumen: doc, filePath };
 };

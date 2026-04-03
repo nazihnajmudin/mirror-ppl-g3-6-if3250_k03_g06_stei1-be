@@ -109,7 +109,16 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
     where: { id: prodiId },
     include: {
       accreditation: true,
-      documents: true,
+      // Dokumen LKPS terakhir di-update
+      documentLKPS: {
+        orderBy: { updatedAt: 'desc' },
+        take: 1
+      },
+      // Ddokumen LED versi tertinggi
+      documentLED: {
+        orderBy: { versi: 'desc' },
+        take: 1
+      },
       users: {
         select: {
           id: true,
@@ -132,17 +141,17 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
   };
 
   // Calculate document progress (placeholder - will be updated based on actual document content)
-  const lkpsDoc = prodi.documents.find((d) => d.type === 'LKPS');
-  const ledDoc = prodi.documents.find((d) => d.type === 'LED');
+  const lkpsDoc = prodi.documentLKPS[0];
+  const ledDoc = prodi.documentLED[0];
 
   const documents = {
     lkps: {
       status: lkpsDoc?.status || 'DRAFT',
-      progress: lkpsDoc?.status === 'FINAL' ? 100 : 50,
+      progress: lkpsDoc?.status === 'FINAL' ? 100 : (lkpsDoc ? 50 : 0),
     },
     led: {
       status: ledDoc?.status || 'DRAFT',
-      progress: ledDoc?.status === 'FINAL' ? 100 : 50,
+      progress: ledDoc?.status === 'FINAL' ? 100 : (ledDoc ? 50 : 0),
     },
   };
 
@@ -201,7 +210,8 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
 export const updateDashboardByProdi = async (
   prodiId: string,
   data: {
-    documents?: Array<{ id: string; status?: string; content?: string }>;
+    documentLKPS?: Array<{ id: string; status?: string; content?: any }>;
+    documentLED?: Array<{ id: string; status?: string; content?: string }>;
     accreditationInfo?: {
       grade?: string;
       startDate?: string;
@@ -218,11 +228,26 @@ export const updateDashboardByProdi = async (
     throw new Error('Program studi tidak ditemukan');
   }
 
-  // Update documents if provided
-  if (data.documents && Array.isArray(data.documents)) {
-    for (const doc of data.documents) {
+  // Update LKPS if provided
+  if (data.documentLKPS && Array.isArray(data.documentLKPS)) {
+    for (const doc of data.documentLKPS) {
       if (doc.id) {
-        await prisma.document.update({
+        await prisma.documentLKPS.update({
+          where: { id: doc.id },
+          data: {
+            ...(doc.status && { status: doc.status as any }),
+            ...(doc.content && { content: doc.content }),
+          },
+        });
+      }
+    }
+  }
+
+  // Update LED if provided
+  if (data.documentLED && Array.isArray(data.documentLED)) {
+    for (const doc of data.documentLED) {
+      if (doc.id) {
+        await prisma.documentLED.update({
           where: { id: doc.id },
           data: {
             ...(doc.status && { status: doc.status as any }),
