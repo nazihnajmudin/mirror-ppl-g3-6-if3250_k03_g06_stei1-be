@@ -148,12 +148,10 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
     where: { id: prodiId },
     include: {
       accreditation: true,
-      // Dokumen LKPS terakhir di-update
       documentLKPS: {
         orderBy: { updatedAt: 'desc' },
         take: 1
       },
-      // Ddokumen LED versi tertinggi
       documentLED: {
         orderBy: { versi: 'desc' },
         take: 1
@@ -178,14 +176,8 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
     endDate: null,
   };
 
-<<<<<<< HEAD
-  const lkpsDoc = prodi.documents.find((d) => d.type === 'LKPS');
-  const ledDoc = prodi.documents.find((d) => d.type === 'LED');
-=======
-  // Calculate document progress (placeholder - will be updated based on actual document content)
   const lkpsDoc = prodi.documentLKPS[0];
   const ledDoc = prodi.documentLED[0];
->>>>>>> origin/feat/led
 
   const documents = {
     lkps: {
@@ -253,18 +245,9 @@ export const updateDashboardByProdi = async (
   const prodi = await prisma.prodi.findUnique({ where: { id: prodiId } });
   if (!prodi) throw new Error('Program studi tidak ditemukan');
 
-<<<<<<< HEAD
-  if (data.documents && Array.isArray(data.documents)) {
-    for (const doc of data.documents) {
-=======
-  if (!prodi) {
-    throw new Error('Program studi tidak ditemukan');
-  }
-
   // Update LKPS if provided
   if (data.documentLKPS && Array.isArray(data.documentLKPS)) {
     for (const doc of data.documentLKPS) {
->>>>>>> origin/feat/led
       if (doc.id) {
         await prisma.documentLKPS.update({
           where: { id: doc.id },
