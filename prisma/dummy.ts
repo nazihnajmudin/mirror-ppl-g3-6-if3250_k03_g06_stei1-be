@@ -1,65 +1,255 @@
 import { PrismaClient, Role } from '@prisma/client';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
   const hashedPassword = await bcrypt.hash('password123', 10);
 
-  await prisma.user.deleteMany({
-    where: {
-      email: { in: ['admin@itb.ac.id', 'kaprodi.if@itb.ac.id'] }
-    }
-  });
-
-  // 2. Buat Data SUPER_ADMIN
-  const superAdmin = await prisma.user.upsert({
-    where: { email: 'admin@itb.ac.id' },
-    update: {},
-    create: {
-      email: 'admin@itb.ac.id',
-      name: 'Super Admin STEI',
-      password: hashedPassword,
-      role: Role.SUPER_ADMIN,
-      isActive: true,
-    },
-  });
-
-  const prodiIF = await prisma.prodi.findFirst({
-    where: { fullname: 'Teknik Informatika' }
-  }) || await prisma.prodi.create({
-    data: {
+  const prodiSeeds = [
+    {
+      key: 'if',
       fullname: 'Teknik Informatika',
       abbreviation: 'IF',
       degree: 'S1',
       accreditation: {
-        create: {
-          grade: 'Unggul',
-          startDate: new Date('2022-01-01'),
-          endDate: new Date('2027-01-01'),
-        }
-      }
+        grade: 'Unggul',
+        startDate: new Date('2024-01-01'),
+        endDate: new Date('2029-12-31'),
+        certificateUrl: 'https://example.com/certificates/if.pdf',
+      },
     },
+    {
+      key: 'ii',
+      fullname: 'Sistem dan Teknologi Informasi',
+      abbreviation: 'II',
+      degree: 'S1',
+      accreditation: {
+        grade: 'Unggul',
+        startDate: new Date('2024-01-01'),
+        endDate: new Date('2029-12-31'),
+        certificateUrl: 'https://example.com/certificates/ii.pdf',
+      },
+    },
+    {
+      key: 'el',
+      fullname: 'Teknik Elektro',
+      abbreviation: 'EL',
+      degree: 'S1',
+      accreditation: {
+        grade: 'A',
+        startDate: new Date('2023-07-01'),
+        endDate: new Date('2028-06-30'),
+        certificateUrl: 'https://example.com/certificates/el.pdf',
+      },
+    },
+    {
+      key: 'ep',
+      fullname: 'Teknik Tenaga Listrik',
+      abbreviation: 'EP',
+      degree: 'S1',
+      accreditation: {
+        grade: 'A',
+        startDate: new Date('2023-07-01'),
+        endDate: new Date('2028-06-30'),
+        certificateUrl: 'https://example.com/certificates/ep.pdf',
+      },
+    },
+    {
+      key: 'et',
+      fullname: 'Teknik Telekomunikasi',
+      abbreviation: 'ET',
+      degree: 'S1',
+      accreditation: {
+        grade: 'Unggul',
+        startDate: new Date('2024-01-01'),
+        endDate: new Date('2029-12-31'),
+        certificateUrl: 'https://example.com/certificates/et.pdf',
+      },
+    },
+    {
+      key: 'eb',
+      fullname: 'Teknik Biomedis',
+      abbreviation: 'EB',
+      degree: 'S1',
+      accreditation: {
+        grade: 'Baik Sekali',
+        startDate: new Date('2022-01-01'),
+        endDate: new Date('2027-12-31'),
+        certificateUrl: 'https://example.com/certificates/eb.pdf',
+      },
+    },
+  ];
+
+  const prodiIdByKey: Record<string, string> = {};
+
+  for (const prodi of prodiSeeds) {
+    const savedProdi = await prisma.prodi.upsert({
+      where: { fullname: prodi.fullname },
+      update: {
+        fullname: prodi.fullname,
+        abbreviation: prodi.abbreviation,
+        degree: prodi.degree,
+      },
+      create: {
+        id: `prodi-${prodi.key}`,
+        fullname: prodi.fullname,
+        abbreviation: prodi.abbreviation,
+        degree: prodi.degree,
+      },
+    });
+
+    prodiIdByKey[prodi.key] = savedProdi.id;
+
+    await prisma.accreditationInfo.upsert({
+      where: { prodiId: savedProdi.id },
+      update: {
+        grade: prodi.accreditation.grade,
+        startDate: prodi.accreditation.startDate,
+        endDate: prodi.accreditation.endDate,
+        certificateUrl: prodi.accreditation.certificateUrl,
+      },
+      create: {
+        prodiId: savedProdi.id,
+        grade: prodi.accreditation.grade,
+        startDate: prodi.accreditation.startDate,
+        endDate: prodi.accreditation.endDate,
+        certificateUrl: prodi.accreditation.certificateUrl,
+      },
+    });
+  }
+
+  const userSeeds: Array<{
+    id: string;
+    email: string;
+    name: string;
+    role: Role;
+    prodiKey: string | null;
+  }> = [
+    {
+      id: 'user-dummy-super-admin',
+      email: 'dummyadmin@email.com',
+      name: 'Admin Dummy',
+      role: 'SUPER_ADMIN',
+      prodiKey: null,
+    },
+    {
+      id: 'user-dummy-pimpinan',
+      email: 'dummypimpinan@email.com',
+      name: 'Pimpinan Dummy',
+      role: 'PIMPINAN',
+      prodiKey: null,
+    },
+    {
+      id: 'user-dummy-kaprodi-if',
+      email: 'kaprodi.if@email.com',
+      name: 'Kaprodi IF Dummy',
+      role: 'KAPRODI',
+      prodiKey: 'if',
+    },
+    {
+      id: 'user-dummy-kaprodi-sti',
+      email: 'kaprodi.ii@email.com',
+      name: 'Kaprodi STI Dummy',
+      role: 'KAPRODI',
+      prodiKey: 'ii',
+    },
+    {
+      id: 'user-dummy-kaprodi-el',
+      email: 'kaprodi.el@email.com',
+      name: 'Kaprodi EL Dummy',
+      role: 'KAPRODI',
+      prodiKey: 'el',
+    },
+    {
+      id: 'user-dummy-kaprodi-tl',
+      email: 'kaprodi.ep@email.com',
+      name: 'Kaprodi EP Dummy',
+      role: 'KAPRODI',
+      prodiKey: 'ep',
+    },
+    {
+      id: 'user-dummy-kaprodi-tt',
+      email: 'kaprodi.et@email.com',
+      name: 'Kaprodi ET Dummy',
+      role: 'KAPRODI',
+      prodiKey: 'et',
+    },
+    {
+      id: 'user-dummy-kaprodi-bm',
+      email: 'kaprodi.eb@email.com',
+      name: 'Kaprodi EB Dummy',
+      role: 'KAPRODI',
+      prodiKey: 'eb',
+    },
+    {
+      id: 'user-dummy-tim-prodi',
+      email: 'tim.prodi@email.com',
+      name: 'Tim Prodi Dummy',
+      role: 'TIM_PRODI',
+      prodiKey: 'if',
+    }
+  ];
+
+  for (const user of userSeeds) {
+    const resolvedProdiId = user.prodiKey ? prodiIdByKey[user.prodiKey] : null;
+
+    await prisma.user.upsert({
+      where: { email: user.email },
+      update: {
+        name: user.name,
+        password: hashedPassword,
+        role: user.role,
+        isActive: true,
+        prodiId: resolvedProdiId,
+      },
+      create: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        password: hashedPassword,
+        role: user.role,
+        isActive: true,
+        prodiId: resolvedProdiId,
+      },
+    });
+  }
+
+  const timProdi = await prisma.user.findUnique({
+    where: { email: 'tim.prodi@email.com' },
+    select: { id: true },
   });
 
-  // 4. Buat Data KAPRODI (Menghubungkan ke prodiId)
-  const kaprodi = await prisma.user.upsert({
-    where: { email: 'kaprodi.if@itb.ac.id' },
-    update: {},
-    create: {
-      email: 'kaprodi.if@itb.ac.id',
-      name: 'Dr. Budi Santoso',
-      password: hashedPassword,
-      role: 'KAPRODI',
-      isActive: true,
-      prodiId: prodiIF.id, // Menghubungkan Kaprodi ke prodi yang dibuat di atas
-    },
-  });
+  if (timProdi) {
+    const assignedProdiKeys = ['if', 'ii', 'el'];
+
+    for (const prodiKey of assignedProdiKeys) {
+      const prodiId = prodiIdByKey[prodiKey];
+      if (!prodiId) continue;
+
+      await prisma.prodiAssignment.upsert({
+        where: {
+          userId_prodiId: {
+            userId: timProdi.id,
+            prodiId,
+          },
+        },
+        update: {},
+        create: {
+          userId: timProdi.id,
+          prodiId,
+        },
+      });
+    }
+  }
+
+  console.log('Dummy seed completed.');
+  console.log('Default password for all dummy users: password123');
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Error during seeding:', e.message);
+    console.error('Error:', e.message);
     process.exit(1);
   })
   .finally(async () => {

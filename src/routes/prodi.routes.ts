@@ -1,26 +1,32 @@
 import { Router } from 'express';
 import {
   getAllProdiHandler,
+  getMyProdiHandler,
   getProdiByIdHandler,
   updateProdiHandler,
   getAccreditationHandler,
   upsertAccreditationHandler,
+  getDashboardByProdiHandler,
+  updateDashboardByProdiHandler,
 } from '../controllers/prodi.controller';
 import { authenticate, requireRole } from '../middlewares/auth.middleware';
+import { requireProdiAccess } from '../middlewares/prodi.middleware';
 import { validate } from '../middlewares/validate.middleware';
 import { Role } from '@prisma/client';
-import { updateProdiSchema, upsertAccreditationSchema } from '../validators/prodi.validator';
+import { updateProdiSchema, upsertAccreditationSchema, updateDashboardSchema } from '../validators/prodi.validator';
 
 /**
  * @swagger
  * tags:
  *   name: Prodi
- *   description: Manajemen profil program studi
+ *   description: Manajemen profil dan dashboard program studi
  */
 
 const router = Router();
 
 router.use(authenticate);
+
+router.get('/my-prodi', getMyProdiHandler);
 
 router.get(
   '/',
@@ -53,5 +59,8 @@ router.put(
   validate(upsertAccreditationSchema),
   upsertAccreditationHandler
 );
+
+router.get('/:prodiId/dashboard', requireProdiAccess('read'), getDashboardByProdiHandler);
+router.put('/:prodiId/dashboard', requireProdiAccess('write'), validate(updateDashboardSchema), updateDashboardByProdiHandler);
 
 export default router;
