@@ -274,10 +274,15 @@ export const getDashboardByProdiHandler = async (req: Request, res: Response): P
  */
 export const updateDashboardByProdiHandler = async (req: Request, res: Response): Promise<void> => {
   const prodiId = String(req.params.prodiId);
-  const { documents, accreditationInfo } = req.body;
+  const { documentLKPS, documentLED, accreditationInfo } = req.body;
 
   try {
-    const updatedDashboard = await prodiService.updateDashboardByProdi(prodiId, { documents, accreditationInfo });
+    const updatedDashboard = await prodiService.updateDashboardByProdi(prodiId, {
+      documentLKPS,
+      documentLED,
+      accreditationInfo,
+    });
+
     successResponse(res, updatedDashboard, 'Dashboard prodi berhasil diupdate');
   } catch (err: any) {
     const message = err?.message || 'Gagal mengupdate dashboard prodi';

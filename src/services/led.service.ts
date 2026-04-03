@@ -81,8 +81,93 @@ export const exportLED = async (prodiId: string, periode: string) => {
  */
 export const getLEDHistory = async (prodiId: string, periode: string) => {
     return prisma.documentLED.findMany({
-        where: { prodiId, periode },
+        where: { prodiId, periode, deletedAt: null },
         orderBy: { versi: 'desc' },
         include: { pengunggah: { select: { name: true, role: true } } }
+    });
+};
+
+/**
+ * Mendapatkan daftar periode yang tersedia untuk sebuah Prodi
+ * Diambil dari riwayat dokumen yang ada + periode aktif dari Akreditasi
+ * @param prodiId 
+ * @returns 
+ */
+export const getAvailablePeriods = async (prodiId: string): Promise<string[]> => {
+    const docs = await prisma.documentLED.findMany({
+        where: { prodiId },
+        select: { periode: true },
+        distinct: ['periode'],
+    });
+
+    const periods = new Set(docs.map((d) => d.periode));
+
+    const akreditasi = await prisma.accreditationInfo.findUnique({
+        where: { prodiId },
+    });
+
+    if (akreditasi && akreditasi.startDate) {
+        const startYear = new Date(akreditasi.startDate).getFullYear().toString();
+        periods.add(startYear);
+    }
+
+    return Array.from(periods).sort();
+};
+
+/**
+ * Mengambil dokumen LED spesifik berdasarkan ID (buat liat versi lama)
+ * @param id 
+ * @returns 
+ */
+export const exportLEDById = async (id: string) => {
+    const doc = await prisma.documentLED.findUnique({
+        where: { id },
+    });
+
+    if (!doc || !doc.content) {
+        throw new Error(`Dokumen LED tidak ditemukan.`);
+    }
+
+    const filePath = storageProvider.getFilePath(doc.content, 'led');
+
+    return { dokumen: doc, filePath };
+};
+
+/**
+ * Soft Delete Single
+ * @param id 
+ * @returns 
+ */
+export const softDeleteDocument = async (id: string) => {
+    return prisma.documentLED.update({
+        where: { id },
+        data: { deletedAt: new Date() }
+    });
+};
+
+/**
+ * Fungsi Soft Delete All Drafts
+ * @param prodiId 
+ * @param periode 
+ * @returns 
+ */
+export const softDeleteAllDrafts = async (prodiId: string, periode: string) => {
+    // Cek apakah ada dokumen FINAL 
+    const hasFinal = await prisma.documentLED.findFirst({
+        where: { prodiId, periode, status: 'FINAL', deletedAt: null }
+    });
+
+    if (!hasFinal) {
+        throw new Error('Penghapusan masal draft hanya diizinkan jika sudah ada minimal satu dokumen FINAL.');
+    }
+
+    return prisma.documentLED.updateMany({
+        where: { 
+            prodiId, 
+            periode, 
+            status: 'DRAFT', 
+            deletedAt: null 
+        },
+        data: { deletedAt: new Date() }
     });
 };

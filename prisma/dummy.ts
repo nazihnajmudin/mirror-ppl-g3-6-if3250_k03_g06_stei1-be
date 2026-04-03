@@ -245,6 +245,73 @@ async function main() {
 
   console.log('Dummy seed completed.');
   console.log('Default password for all dummy users: password123');
+
+  // ==========================================
+  // SEEDING DUMMY: DOKUMEN LED
+  // ==========================================
+  console.log('Seeding Document LED dummy data...');
+  
+  const kaprodiIf = await prisma.user.findUnique({ where: { email: 'kaprodi.if@email.com' } });
+  const prodiIfId = prodiIdByKey['if'];
+
+  if (kaprodiIf && prodiIfId) {
+    const dummyLEDs = [
+      {
+        name: 'dummy1.docx',
+        status: 'DRAFT' as any,
+        content: 'dummy1.docx',
+        ukuran: 1024 * 33,
+        periode: '2025',
+        versi: 1,
+        pengunggahId: kaprodiIf.id,
+        prodiId: prodiIfId,
+      },
+      {
+        name: 'dummy2.docx',
+        status: 'DRAFT' as any,
+        content: 'dummy2.docx',
+        ukuran: 1024 * 751,
+        periode: '2025',
+        versi: 2,
+        pengunggahId: kaprodiIf.id,
+        prodiId: prodiIfId,
+      },
+      {
+        name: 'dummy3.docx',
+        status: 'FINAL' as any,
+        content: 'dummy3.docx',
+        ukuran: 1024 * 19,
+        periode: '2025',
+        versi: 3,
+        pengunggahId: kaprodiIf.id,
+        prodiId: prodiIfId,
+      },
+      {
+        name: 'dummy4.docx',
+        status: 'FINAL' as any,
+        content: 'dummy4.docx',
+        ukuran: 1024 * 892,
+        periode: '2020',
+        versi: 1,
+        pengunggahId: kaprodiIf.id,
+        prodiId: prodiIfId,
+      }
+    ];
+
+    for (const led of dummyLEDs) {
+      await prisma.documentLED.upsert({
+        where: {
+          prodiId_periode_versi: {
+            prodiId: led.prodiId,
+            periode: led.periode,
+            versi: led.versi
+          }
+        },
+        update: led,
+        create: led,
+      });
+    }
+  }
 }
 
 main()
