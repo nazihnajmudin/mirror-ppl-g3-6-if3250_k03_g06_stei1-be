@@ -19,16 +19,16 @@ router.post(
     importLEDHandler
 );
 
-// Export/Download LED
-router.get(
-    '/export/:prodiId/:periode',
-    exportLEDHandler
-);
-
 // Export Specific LED
 router.get(
     '/export/document/:id', 
     exportLEDByIdHandler
+);
+
+// Export/Download LED
+router.get(
+    '/export/:prodiId/:periode',
+    exportLEDHandler
 );
 
 // Upload History

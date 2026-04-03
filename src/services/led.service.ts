@@ -106,9 +106,9 @@ export const getAvailablePeriods = async (prodiId: string): Promise<string[]> =>
         where: { prodiId },
     });
 
-    if (akreditasi && akreditasi.endDate) {
-        const endYear = new Date(akreditasi.endDate).getFullYear().toString();
-        periods.add(endYear);
+    if (akreditasi && akreditasi.startDate) {
+        const startYear = new Date(akreditasi.startDate).getFullYear().toString();
+        periods.add(startYear);
     }
 
     return Array.from(periods).sort();
