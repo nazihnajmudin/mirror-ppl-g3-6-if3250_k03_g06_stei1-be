@@ -100,15 +100,17 @@ model AccreditationInfo {
 
 // Stores LKPS or LED Document per study program
 model Document {
-  id            String          @id @default(uuid())
-  prodiId       String
-  prodi         Prodi           @relation(fields: [prodiId], references: [id])
-  name          String?         // Optional name for the document, e.g. "LKPS 2024"
-  type          DocumentType
-  status        DocumentStatus  @default(DRAFT)
-  content       Json?
-  lockedAt      DateTime?
-  lockedBy      String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id               String          @id @default(uuid())
+  prodiId          String
+  prodi            Prodi           @relation(fields: [prodiId], references: [id])
+  name             String?         // Optional name for the document, e.g. "LKPS 2024"
+  type             DocumentType
+  status           DocumentStatus  @default(DRAFT)
+  content          Json?           // Parsed summary for dashboard
+  filePath         String?         // Path to original .xlsx file on server
+  originalFilename String?         // Original name of uploaded file
+  lockedAt         DateTime?
+  lockedBy         String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 }
