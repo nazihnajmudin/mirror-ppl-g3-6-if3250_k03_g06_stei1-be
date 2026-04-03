@@ -3,8 +3,10 @@ import prisma from '../config/database.config';
 import { Role, Prisma } from '@prisma/client';
 import { CreateAccountInput, UpdateAccountInput } from '../validators/account.validator';
 
+// Number of salt rounds for bcrypt hashing
 const SALT_ROUNDS = 10;
 
+// Helper function to determine if a role requires an associated prodiId
 const requiresProdiRole = (role: Role): boolean => {
   return role === Role.TIM_PRODI || role === Role.KAPRODI;
 };
@@ -134,4 +136,17 @@ export const deleteAccount = async (id: string) => {
   const existing = await prisma.user.findUnique({ where: { id } });
   if (!existing) throw new Error('Pengguna tidak ditemukan');
   return prisma.user.delete({ where: { id }, select: userSelect });
+};
+
+// Get prodi options for dropdowns
+export const getProdiOptions = async () => {
+  return prisma.prodi.findMany({
+    select: {
+      id: true,
+      fullname: true,
+      abbreviation: true,
+      degree: true,
+    },
+    orderBy: { fullname: 'asc' },
+  });
 };

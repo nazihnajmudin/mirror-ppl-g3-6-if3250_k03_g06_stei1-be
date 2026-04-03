@@ -107,7 +107,6 @@ model DocumentLKPS {
   id            String          @id @default(uuid())
   prodiId       String
   prodi         Prodi           @relation(fields: [prodiId], references: [id])
-  
   name          String?         // e.g. "LKPS 2024"
   status        DocumentStatus  @default(DRAFT)
   content       Json?           // Hasil parsing Excel LKPS

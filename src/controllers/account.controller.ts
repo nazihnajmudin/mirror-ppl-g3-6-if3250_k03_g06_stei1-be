@@ -268,3 +268,24 @@ export const deleteAccountHandler = async (req: Request, res: Response): Promise
     errorResponse(res, err.message, 404);
   }
 };
+
+/**
+ * @swagger
+ * /api/accounts/prodi-options:
+ *   get:
+ *     summary: Mendapatkan daftar program studi untuk dropdown akun
+ *     tags: [Accounts]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Daftar program studi berhasil diambil
+ */
+export const getProdiOptionsHandler = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const prodis = await accountService.getProdiOptions();
+    successResponse(res, prodis, 'Daftar program studi berhasil diambil');
+  } catch (err: any) {
+    errorResponse(res, err.message, 500);
+  }
+};

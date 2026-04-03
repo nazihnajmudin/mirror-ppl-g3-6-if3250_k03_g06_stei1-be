@@ -7,6 +7,7 @@ import {
   deleteAccountHandler,
   deactivateAccountHandler,
   activateAccountHandler,
+  getProdiOptionsHandler,
 } from '../controllers/account.controller';
 import { authenticate, requireRole } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
@@ -17,21 +18,21 @@ import { createAccountSchema, updateAccountSchema } from '../validators/account.
  * @swagger
  * tags:
  *   name: Accounts
- *   description: Manajemen akun pengguna sistem (hanya Admin Institusi)
+ *   description: Manajemen akun pengguna sistem (hanya Super Admin)
  */
 
 const router = Router();
+router.get('/prodi-options', getProdiOptionsHandler);
 
 // All account management routes require authentication and SUPER_ADMIN role
 router.use(authenticate);
-router.use(requireRole(Role.SUPER_ADMIN));
 
-router.get('/', getAllAccountsHandler);
-router.get('/:id', getAccountByIdHandler);
-router.post('/', validate(createAccountSchema), createAccountHandler);
-router.put('/:id', validate(updateAccountSchema), updateAccountHandler);
-router.patch('/:id/deactivate', deactivateAccountHandler);
-router.patch('/:id/activate', activateAccountHandler);
-router.delete('/:id', deleteAccountHandler);
+router.get('/', requireRole(Role.SUPER_ADMIN, Role.KAPRODI), getAllAccountsHandler);
+router.get('/:id', requireRole(Role.SUPER_ADMIN), getAccountByIdHandler);
+router.post('/', requireRole(Role.SUPER_ADMIN), validate(createAccountSchema), createAccountHandler);
+router.put('/:id', requireRole(Role.SUPER_ADMIN), validate(updateAccountSchema), updateAccountHandler);
+router.patch('/:id/deactivate', requireRole(Role.SUPER_ADMIN), deactivateAccountHandler);
+router.patch('/:id/activate', requireRole(Role.SUPER_ADMIN), activateAccountHandler);
+router.delete('/:id', requireRole(Role.SUPER_ADMIN), deleteAccountHandler);
 
 export default router;
