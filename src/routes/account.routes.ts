@@ -22,6 +22,7 @@ import { createAccountSchema, updateAccountSchema } from '../validators/account.
  */
 
 const router = Router();
+router.get('/prodi-options', getProdiOptionsHandler);
 
 // All account management routes require authentication and SUPER_ADMIN role
 router.use(authenticate);
@@ -34,6 +35,5 @@ router.put('/:id', validate(updateAccountSchema), updateAccountHandler);
 router.patch('/:id/deactivate', deactivateAccountHandler);
 router.patch('/:id/activate', activateAccountHandler);
 router.delete('/:id', deleteAccountHandler);
-router.get('/prodi-options', getProdiOptionsHandler);
 
 export default router;
