@@ -6,7 +6,7 @@ import {
   getLKPSHistoryHandler,
   exportLKPSHandler,
 } from '../controllers/lkps.controller';
-import { authenticate, allRoles } from '../middlewares/auth.middleware';
+import { authenticate } from '../middlewares/auth.middleware';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });

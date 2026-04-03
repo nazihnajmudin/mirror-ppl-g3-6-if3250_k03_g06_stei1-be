@@ -1,6 +1,5 @@
-import { PrismaClient, DocumentType, DocumentStatus } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../config/database.config';
+import { DocumentStatus } from '@prisma/client';
 
 export const createLKPSDocument = async (
   prodiId: string,
@@ -9,12 +8,11 @@ export const createLKPSDocument = async (
   filePath?: string,
   originalFilename?: string
 ) => {
-  return await prisma.document.create({
+  return await prisma.documentLKPS.create({
     data: {
       prodiId,
       content,
       name: name || `LKPS ${new Date().getFullYear()}`,
-      type: DocumentType.LKPS,
       status: DocumentStatus.DRAFT,
       filePath,
       originalFilename,
@@ -23,10 +21,9 @@ export const createLKPSDocument = async (
 };
 
 export const getLKPSHistoryByProdi = async (prodiId: string) => {
-  return await prisma.document.findMany({
+  return await prisma.documentLKPS.findMany({
     where: {
       prodiId,
-      type: DocumentType.LKPS,
     },
     orderBy: {
       createdAt: 'desc',
@@ -42,7 +39,7 @@ export const getLKPSHistoryByProdi = async (prodiId: string) => {
 };
 
 export const getLKPSDocumentById = async (id: string) => {
-  return await prisma.document.findUnique({
+  return await prisma.documentLKPS.findUnique({
     where: { id },
     include: {
       prodi: true,

@@ -26,10 +26,10 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
     const file = req.file;
     
     // Default to req.user.prodiId if not provided (for Kaprodi)
-    let targetProdiId = (prodiId as string) || req.user?.prodiId;
+    let targetProdiId = (prodiId as string) || (req.user as any)?.prodiId;
 
     // "God Mode" for Super Admin: If no Prodi is provided, pick the first one from DB
-    if (!targetProdiId && req.user?.role === 'SUPER_ADMIN') {
+    if (!targetProdiId && (req.user as any)?.role === 'SUPER_ADMIN') {
       const firstProdi = await prisma.prodi.findFirst();
       if (firstProdi) {
         targetProdiId = firstProdi.id;
@@ -93,7 +93,7 @@ export const exportLKPSHandler = async (req: Request, res: Response) => {
       const fullPath = path.join(process.cwd(), document.filePath);
       if (fs.existsSync(fullPath)) {
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=${document.originalFilename || 'LKPS.xlsx'}`);
+        res.setHeader('Content-Disposition', `attachment; filename="${document.originalFilename || 'LKPS.xlsx'}"`);
         return res.sendFile(fullPath);
       }
     }
@@ -107,7 +107,7 @@ export const exportLKPSHandler = async (req: Request, res: Response) => {
     const buffer = await generateLKPSExcel(document.content);
     
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=LKPS_${document.prodi?.abbreviation || 'Export'}.xlsx`);
+    res.setHeader('Content-Disposition', `attachment; filename="LKPS_${document.prodi?.abbreviation || 'Export'}.xlsx"`);
     
     return res.send(buffer);
   } catch (error: any) {
