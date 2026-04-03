@@ -148,14 +148,8 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
     where: { id: prodiId },
     include: {
       accreditation: true,
-      documents: true,
-      users: {
-        select: {
-          id: true,
-          name: true,
-          role: true,
-        },
-      },
+      documentLKPS: true,
+      documentLED: true,
     },
   });
 
@@ -169,8 +163,8 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
     endDate: null,
   };
 
-  const lkpsDoc = prodi.documents.find((d) => d.type === 'LKPS');
-  const ledDoc = prodi.documents.find((d) => d.type === 'LED');
+  const lkpsDoc = prodi.documentLKPS[0] as { status: string } | undefined;
+  const ledDoc = prodi.documentLED[0] as { status: string } | undefined;
 
   const documents = {
     lkps: {
@@ -194,14 +188,7 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
 
   const criticalIndicators: Array<{ id: string; name: string; status: string }> = [];
 
-  const recentActivities = prodi.users
-    .slice(0, 4)
-    .map((user, index) => ({
-      id: user.id,
-      user: user.name,
-      action: 'Melakukan aktivitas sistem',
-      timestamp: new Date(Date.now() - (index + 1) * 86400000).toISOString(),
-    }));
+  const recentActivities: Array<{ id: string; user: string; action: string; timestamp: string }> = [];
 
   return {
     prodi: {
@@ -240,8 +227,8 @@ export const updateDashboardByProdi = async (
   if (data.documents && Array.isArray(data.documents)) {
     for (const doc of data.documents) {
       if (doc.id) {
-        await prisma.document.update({
-          where: { id: doc.id },
+        await prisma.documentLKPS.updateMany({
+          where: { id: doc.id, prodiId },
           data: {
             ...(doc.status && { status: doc.status as any }),
             ...(doc.content && { content: doc.content }),
