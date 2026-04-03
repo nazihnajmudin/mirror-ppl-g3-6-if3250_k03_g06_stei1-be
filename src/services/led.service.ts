@@ -81,7 +81,7 @@ export const exportLED = async (prodiId: string, periode: string) => {
  */
 export const getLEDHistory = async (prodiId: string, periode: string) => {
     return prisma.documentLED.findMany({
-        where: { prodiId, periode },
+        where: { prodiId, periode, deletedAt: null },
         orderBy: { versi: 'desc' },
         include: { pengunggah: { select: { name: true, role: true } } }
     });
@@ -131,4 +131,43 @@ export const exportLEDById = async (id: string) => {
     const filePath = storageProvider.getFilePath(doc.content, 'led');
 
     return { dokumen: doc, filePath };
+};
+
+/**
+ * Soft Delete Single
+ * @param id 
+ * @returns 
+ */
+export const softDeleteDocument = async (id: string) => {
+    return prisma.documentLED.update({
+        where: { id },
+        data: { deletedAt: new Date() }
+    });
+};
+
+/**
+ * Fungsi Soft Delete All Drafts
+ * @param prodiId 
+ * @param periode 
+ * @returns 
+ */
+export const softDeleteAllDrafts = async (prodiId: string, periode: string) => {
+    // Cek apakah ada dokumen FINAL 
+    const hasFinal = await prisma.documentLED.findFirst({
+        where: { prodiId, periode, status: 'FINAL', deletedAt: null }
+    });
+
+    if (!hasFinal) {
+        throw new Error('Penghapusan masal draft hanya diizinkan jika sudah ada minimal satu dokumen FINAL.');
+    }
+
+    return prisma.documentLED.updateMany({
+        where: { 
+            prodiId, 
+            periode, 
+            status: 'DRAFT', 
+            deletedAt: null 
+        },
+        data: { deletedAt: new Date() }
+    });
 };

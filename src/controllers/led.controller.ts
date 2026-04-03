@@ -294,3 +294,30 @@ export const exportLEDByIdHandler = async (req: Request, res: Response): Promise
         errorResponse(res, err.message, 404);
     }
 };
+
+export const softDeleteDocumentHandler = async (req: Request, res: Response) => {
+    try {
+        const id = String(req.params.id);
+        await ledService.softDeleteDocument(id);
+        successResponse(res, null, 'Dokumen berhasil dipindahkan ke tempat sampah');
+    } catch (err: any) {
+        errorResponse(res, err.message, 400);
+    }
+};
+
+export const softDeleteAllDraftsHandler = async (req: Request, res: Response) => {
+    try {
+        const prodiId = String(req.params.prodiId);
+        const periode = String(req.params.periode);
+
+        if (!req.params.prodiId || !req.params.periode) {
+            errorResponse(res, 'Parameter prodiId dan periode tidak valid', 400);
+            return;
+        }
+
+        await ledService.softDeleteAllDrafts(prodiId, periode);
+        successResponse(res, null, 'Semua versi draft berhasil dihapus');
+    } catch (err: any) {
+        errorResponse(res, err.message, 400);
+    }
+};
