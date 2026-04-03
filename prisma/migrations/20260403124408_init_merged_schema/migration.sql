@@ -62,6 +62,8 @@ CREATE TABLE "DocumentLKPS" (
     "name" TEXT,
     "status" "DocumentStatus" NOT NULL DEFAULT 'DRAFT',
     "content" JSONB,
+    "filePath" TEXT,
+    "originalFilename" TEXT,
     "lockedAt" TIMESTAMP(3),
     "lockedBy" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

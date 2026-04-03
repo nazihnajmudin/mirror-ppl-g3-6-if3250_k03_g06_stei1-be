@@ -78,17 +78,27 @@ export const getProdiForUser = async (userId: string) => {
     throw new Error('Pengguna tidak ditemukan');
   }
 
-  if (user.role === Role.KAPRODI && user.prodi) {
-    return [user.prodi];
+  // Admin/Pimpinan see everything
+  if (user.role === Role.SUPER_ADMIN || user.role === Role.PIMPINAN) {
+    return prisma.prodi.findMany({
+      orderBy: { fullname: 'asc' },
+    });
   }
 
-  if (user.role === Role.TIM_PRODI) {
-    return user.assignments.map((a) => a.prodi);
+  // For Prodi Staff (KAPRODI/TIM_PRODI): Collect unique prodis from primary prodiId AND assignments
+  const prodiMap = new Map<string, any>();
+
+  if (user.prodi) {
+    prodiMap.set(user.prodi.id, user.prodi);
   }
 
-  return prisma.prodi.findMany({
-    orderBy: { fullname: 'asc' },
+  user.assignments.forEach((a) => {
+    if (a.prodi) {
+      prodiMap.set(a.prodi.id, a.prodi);
+    }
   });
+
+  return Array.from(prodiMap.values());
 };
 
 export const getProdiById = async (id: string) => {
