@@ -11,7 +11,7 @@ const assignmentSelect = {
   prodi: { select: { id: true, fullname: true } },
 };
 
-export const getAllPenugasan = async (prodiId: string) => {
+export const getAllPenugasan = async (prodiId?: string) => {
   return prisma.prodiAssignment.findMany({
     where: { prodiId },
     include: {

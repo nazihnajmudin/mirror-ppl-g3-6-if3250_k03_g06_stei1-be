@@ -5,6 +5,7 @@ import { errorResponse } from '../utils/response';
 
 export interface JwtPayload {
   userId: string;
+  name: string;
   email: string;
   role: Role;
   prodiId?: string | null;

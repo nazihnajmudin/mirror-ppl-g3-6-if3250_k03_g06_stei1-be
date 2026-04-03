@@ -101,7 +101,7 @@ export const createPenugasanHandler = async (req: Request, res: Response): Promi
  */
 export const deletePenugasanHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    const penugasan = await penugasanService.deletePenugasan(req.params.id);
+    const penugasan = await penugasanService.deletePenugasan(req.params.id as string);
     successResponse(res, penugasan, 'Penugasan berhasil dihapus');
   } catch (err: any) {
     const code = err.message.includes('tidak ditemukan') ? 404 : 500;

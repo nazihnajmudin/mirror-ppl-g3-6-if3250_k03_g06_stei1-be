@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 export const createPenugasanSchema = z.object({
-  userId: z.string().uuid('Format userId tidak valid (harus UUID)'),
-  prodiId: z.string().uuid('Format prodiId tidak valid (harus UUID)'),
+  userId: z.string().min(1, 'userId wajib diisi'),
+  prodiId: z.string().min(1, 'prodiId wajib diisi'),
 });
 
 export type CreatePenugasanInput = z.infer<typeof createPenugasanSchema>;
