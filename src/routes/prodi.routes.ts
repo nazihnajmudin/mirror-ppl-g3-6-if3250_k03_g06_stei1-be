@@ -55,7 +55,7 @@ router.get(
 
 router.put(
   '/:id/accreditation',
-  requireRole(Role.SUPER_ADMIN),
+  requireRole(Role.SUPER_ADMIN, Role.KAPRODI),
   validate(upsertAccreditationSchema),
   upsertAccreditationHandler
 );
