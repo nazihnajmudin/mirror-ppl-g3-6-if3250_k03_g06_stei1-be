@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  getAllProdiHandler,
   getDashboardByProdiHandler,
   getMyProdiHandler,
   getProdiHandler,
@@ -22,6 +23,7 @@ const router = Router();
 // All prodi routes require authentication
 router.use(authenticate);
 
+router.get('/', getAllProdiHandler);
 router.get('/my-prodi', getMyProdiHandler);
 router.get('/:prodiId', requireProdiAccess('read'), getProdiHandler);
 router.get('/:prodiId/dashboard', requireProdiAccess('read'), getDashboardByProdiHandler);

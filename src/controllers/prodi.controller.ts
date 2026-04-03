@@ -4,6 +4,35 @@ import { successResponse, errorResponse } from '../utils/response';
 
 /**
  * @swagger
+ * /api/prodi:
+ *   get:
+ *     summary: Mendapatkan daftar prodi yang dapat diakses oleh pengguna
+ *     tags: [Prodi]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Daftar prodi berhasil diambil
+ */
+export const getAllProdiHandler = async (req: Request, res: Response): Promise<void> => {
+  const userId = (req.user as any)?.userId;
+
+  if (!userId) {
+    errorResponse(res, 'Pengguna tidak terautentikasi', 401);
+    return;
+  }
+
+  try {
+    const prodis = await prodiService.getProdiForUser(userId);
+    successResponse(res, prodis, 'Daftar prodi berhasil diambil');
+  } catch (err: any) {
+    const message = err?.message || 'Gagal mengambil daftar prodi';
+    errorResponse(res, message, 400);
+  }
+};
+
+/**
+ * @swagger
  * /api/prodi/my-prodi:
  *   get:
  *     summary: Mendapatkan prodi yang dapat diakses oleh pengguna
