@@ -186,8 +186,13 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
     endDate: null,
   };
 
+<<<<<<< HEAD
   const lkpsDoc = prodi.documentLKPS[0];
   const ledDoc = prodi.documentLED[0];
+=======
+  const lkpsDoc = prodi.documentLKPS[0] as { status: string } | undefined;
+  const ledDoc = prodi.documentLED[0] as { status: string } | undefined;
+>>>>>>> origin/develop
 
   const documents = {
     lkps: {
@@ -211,14 +216,7 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
 
   const criticalIndicators: Array<{ id: string; name: string; status: string }> = [];
 
-  const recentActivities = prodi.users
-    .slice(0, 4)
-    .map((user, index) => ({
-      id: user.id,
-      user: user.name,
-      action: 'Melakukan aktivitas sistem',
-      timestamp: new Date(Date.now() - (index + 1) * 86400000).toISOString(),
-    }));
+  const recentActivities: Array<{ id: string; user: string; action: string; timestamp: string }> = [];
 
   return {
     prodi: {
