@@ -26,7 +26,9 @@ export const getAllPenugasan = async (prodiId?: string) => {
 export const createPenugasan = async (data: CreatePenugasanInput) => {
   const user = await prisma.user.findUnique({ where: { id: data.userId } });
   if (!user) throw new Error('Pengguna tidak ditemukan');
-  if (user.role !== Role.TIM_PRODI) throw new Error('Pengguna harus memiliki role TIM_PRODI');
+  if (user.role !== Role.TIM_PRODI && user.role !== Role.KAPRODI) {
+    throw new Error('Pengguna harus memiliki role TIM_PRODI atau KAPRODI');
+  }
 
   const prodi = await prisma.prodi.findUnique({ where: { id: data.prodiId } });
   if (!prodi) throw new Error('Program studi tidak ditemukan');
