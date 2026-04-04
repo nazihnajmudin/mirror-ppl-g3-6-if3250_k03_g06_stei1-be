@@ -22,7 +22,7 @@ export const previewLKPSHandler = async (req: Request, res: Response) => {
 
 export const confirmLKPSHandler = async (req: Request, res: Response) => {
   try {
-    const { prodiId, name } = req.body;
+    const { prodiId, name, periode } = req.body;
     const file = req.file;
     
     // Default to req.user.prodiId if not provided (for Kaprodi)
@@ -58,7 +58,8 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
       {}, // Empty content since we're just storing the binary file
       name || `LKPS - ${originalFilename}`, 
       filePath, 
-      originalFilename
+      originalFilename,
+      periode
     );
     
     return successResponse(res, document, 'LKPS berhasil diupload', 201);

@@ -6,16 +6,18 @@ export const createLKPSDocument = async (
   content: any,
   name?: string,
   filePath?: string,
-  originalFilename?: string
+  originalFilename?: string,
+  periode?: string
 ) => {
   return await prisma.documentLKPS.create({
     data: {
       prodiId,
       content,
-      name: name || `LKPS ${new Date().getFullYear()}`,
+      name: name || `LKPS ${periode || new Date().getFullYear()}`,
       status: DocumentStatus.DRAFT,
       filePath,
       originalFilename,
+      periode,
     },
   });
 };

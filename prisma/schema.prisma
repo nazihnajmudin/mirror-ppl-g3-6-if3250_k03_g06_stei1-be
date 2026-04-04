@@ -111,6 +111,9 @@ model DocumentLKPS {
   status           DocumentStatus  @default(DRAFT)
   content          Json?           // Hasil parsing Excel LKPS
   
+  // Rentang/Tahun Akreditasi (e.g. "2025")
+  periode          String?         
+
   // Added from feat/lkps
   filePath         String?         // Path to original .xlsx file on server
   originalFilename String?         // Original name of uploaded file
