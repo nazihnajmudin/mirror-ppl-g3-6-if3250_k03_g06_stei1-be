@@ -186,13 +186,8 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
     endDate: null,
   };
 
-<<<<<<< HEAD
-  const lkpsDoc = prodi.documentLKPS[0];
-  const ledDoc = prodi.documentLED[0];
-=======
   const lkpsDoc = prodi.documentLKPS[0] as { status: string } | undefined;
   const ledDoc = prodi.documentLED[0] as { status: string } | undefined;
->>>>>>> origin/develop
 
   const documents = {
     lkps: {
