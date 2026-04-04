@@ -22,7 +22,12 @@ export const previewLKPSHandler = async (req: Request, res: Response) => {
 
 export const confirmLKPSHandler = async (req: Request, res: Response) => {
   try {
-    console.log('Incoming Upload Body:', req.body);
+    console.log('--- LKPS UPLOAD DEBUG ---');
+    console.log('Headers:', req.headers['content-type']);
+    console.log('Body Keys:', Object.keys(req.body));
+    console.log('Periode value:', req.body.periode);
+    console.log('-------------------------');
+    
     const { prodiId, name, periode } = req.body;
     const file = req.file;
     
