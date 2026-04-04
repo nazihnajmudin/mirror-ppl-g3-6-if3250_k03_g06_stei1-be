@@ -22,6 +22,7 @@ export const previewLKPSHandler = async (req: Request, res: Response) => {
 
 export const confirmLKPSHandler = async (req: Request, res: Response) => {
   try {
+    console.log('Incoming Upload Body:', req.body);
     const { prodiId, name, periode } = req.body;
     const file = req.file;
     
@@ -59,7 +60,7 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
       name || `LKPS - ${originalFilename}`, 
       filePath, 
       originalFilename,
-      periode
+      periode?.toString()
     );
     
     return successResponse(res, document, 'LKPS berhasil diupload', 201);

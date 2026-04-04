@@ -1,12 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  //  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -14,9 +7,94 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ====================
-// ENUMS
-// ====================
+model Prodi {
+  id            String             @id @default(uuid())
+  fullname      String             @unique
+  abbreviation  String?
+  degree        String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  accreditation AccreditationInfo?
+  documentLED   DocumentLED[]
+  documentLKPS  DocumentLKPS[]
+  assignments   ProdiAssignment[]
+  users         User[]
+}
+
+model User {
+  id          String            @id @default(uuid())
+  email       String            @unique
+  name        String
+  password    String
+  role        Role
+  isActive    Boolean           @default(true)
+  prodiId     String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  documentLED DocumentLED[]
+  assignments ProdiAssignment[]
+  prodi       Prodi?            @relation(fields: [prodiId], references: [id])
+}
+
+model ProdiAssignment {
+  id        String   @id @default(uuid())
+  userId    String
+  prodiId   String
+  createdAt DateTime @default(now())
+  prodi     Prodi    @relation(fields: [prodiId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, prodiId])
+}
+
+model AccreditationInfo {
+  id             String    @id @default(uuid())
+  prodiId        String    @unique
+  grade          String?
+  startDate      DateTime?
+  endDate        DateTime?
+  certificateUrl String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  prodi          Prodi     @relation(fields: [prodiId], references: [id])
+}
+
+model DocumentLKPS {
+  id               String         @id @default(uuid())
+  prodiId          String
+  name             String?
+  status           DocumentStatus @default(DRAFT)
+  content          Json?
+  filePath         String?
+  originalFilename String?
+  lockedAt         DateTime?
+  lockedBy         String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  periode          String?
+  prodi            Prodi          @relation(fields: [prodiId], references: [id])
+}
+
+model DocumentLED {
+  id           String         @id @default(uuid())
+  prodiId      String
+  name         String?
+  status       DocumentStatus @default(DRAFT)
+  content      String?
+  lockedAt     DateTime?
+  lockedBy     String?
+  ukuran       Int?
+  periode      String
+  versi        Int
+  pengunggahId String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  deletedAt    DateTime?
+  pengunggah   User           @relation(fields: [pengunggahId], references: [id])
+  prodi        Prodi          @relation(fields: [prodiId], references: [id])
+
+  @@unique([prodiId, periode, versi])
+}
 
 enum Role {
   SUPER_ADMIN
@@ -28,127 +106,4 @@ enum Role {
 enum DocumentStatus {
   DRAFT
   FINAL
-}
-
-// ====================
-// MODELS
-// ====================
-
-// Represents one study program in STEI ITB
-model Prodi {
-  id            String          @id @default(uuid())
-  fullname      String          @unique // e.g. "Teknik Infomatika"
-  abbreviation  String?                 // e.g. "IF", "EL", "EP"
-  degree        String?                 // e.g. "S1", "S2", "S3"
-  users         User[]                  // For Kaprodi
-  assignments   ProdiAssignment[]       // Tim Prodi assigned to this prodi
-  accreditation AccreditationInfo?
-  
-  documentLKPS  DocumentLKPS[]
-  documentLED   DocumentLED[]
-
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-}
-
-// Represents one user account
-model User {
-  id            String          @id @default(uuid())
-  email         String          @unique
-  name          String
-  password      String
-  role          Role
-  isActive      Boolean         @default(true)
-
-  // Main relation to prodi, filled for Kaprodi
-  prodiId       String?
-  prodi         Prodi?          @relation(fields: [prodiId], references: [id])
-
-  // Multi-prodi relation for Tim Prodi
-  assignments   ProdiAssignment[]
-  documentLED   DocumentLED[]   // Audit trail pengunggah LED
-
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-}
-
-// Junction table for many-to-many relation betwwen User and Prodi
-model ProdiAssignment {
-  id            String          @id @default(uuid())
-  userId        String
-  prodiId       String
-  user          User            @relation(fields: [userId], references: [id])
-  prodi         Prodi           @relation(fields: [prodiId], references: [id])
-  createdAt     DateTime        @default(now())
-
-  @@unique([userId, prodiId])
-}
-
-// Stores active accreditation information per study program
-model AccreditationInfo {
-  id            String          @id @default(uuid())
-  prodiId       String          @unique
-  prodi         Prodi           @relation(fields: [prodiId], references: [id])
-  grade         String?
-  startDate     DateTime?
-  endDate       DateTime?
-  certificateUrl String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-}
-
-// ====================
-// DOCUMENTS
-// ====================
-
-// --- TABEL DOCUMENT LKPS ---
-model DocumentLKPS {
-  id               String          @id @default(uuid())
-  prodiId          String
-  prodi            Prodi           @relation(fields: [prodiId], references: [id])
-  
-  name             String?         // e.g. "LKPS 2024"
-  status           DocumentStatus  @default(DRAFT)
-  content          Json?           // Hasil parsing Excel LKPS
-  
-  // Rentang/Tahun Akreditasi (e.g. "2025")
-  periode          String?         
-
-  // Added from feat/lkps
-  filePath         String?         // Path to original .xlsx file on server
-  originalFilename String?         // Original name of uploaded file
-
-  lockedAt         DateTime?
-  lockedBy         String?
-  
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-}
-
-// --- TABEL DOCUMENT LED ---
-model DocumentLED {
-  id            String          @id @default(uuid())
-  prodiId       String
-  prodi         Prodi           @relation(fields: [prodiId], references: [id])
-  
-  name          String?         // e.g. "LED_Draft.docx"
-  status        DocumentStatus  @default(DRAFT)
-  content       String?         // Menyimpan path file storage
-  
-  lockedAt      DateTime?
-  lockedBy      String?
-  
-  // --- Atribut Khusus LED ---
-  ukuran        Int?            // Ukuran file dalam bytes
-  periode       String          // Rentang/Tahun Akreditasi (e.g. "2025")
-  versi         Int             // Urutan revisi
-  
-  pengunggahId  String
-  pengunggah    User            @relation(fields: [pengunggahId], references: [id])
-  
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  deletedAt     DateTime?       // Soft Delete
-
-  @@unique([prodiId, periode, versi])
 }
