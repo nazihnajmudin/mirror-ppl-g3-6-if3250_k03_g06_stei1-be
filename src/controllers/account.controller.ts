@@ -17,12 +17,12 @@ import { Role } from '@prisma/client';
  *         required: false
  *         schema:
  *           type: string
- *           enum: [ADMIN_INSTITUSI, PIMPINAN, KAPRODI, ADMIN_PRODI, DOSEN]
+ *           enum: [SUPER_ADMIN, PIMPINAN, KAPRODI, TIM_PRODI]
  *       - in: query
  *         name: prodiId
  *         required: false
  *         schema:
- *           type: integer
+ *           type: string
  *       - in: query
  *         name: isActive
  *         required: false
@@ -45,8 +45,8 @@ export const getAllAccountsHandler = async (req: Request, res: Response): Promis
         ? (req.query.role as Role)
         : undefined;
     const prodiId =
-      typeof req.query.prodiId === 'string' && !isNaN(Number(req.query.prodiId))
-        ? Number(req.query.prodiId)
+      typeof req.query.prodiId === 'string'
+        ? req.query.prodiId
         : undefined;
     const isActive =
       req.query.isActive === 'true' ? true : req.query.isActive === 'false' ? false : undefined;
@@ -71,7 +71,7 @@ export const getAllAccountsHandler = async (req: Request, res: Response): Promis
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
  *         description: ID pengguna
  *     responses:
  *       200:
@@ -82,11 +82,7 @@ export const getAllAccountsHandler = async (req: Request, res: Response): Promis
  *         description: Pengguna tidak ditemukan
  */
 export const getAccountByIdHandler = async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(String(req.params.id), 10);
-  if (isNaN(id)) {
-    errorResponse(res, 'ID tidak valid', 400);
-    return;
-  }
+  const id = String(req.params.id);
 
   try {
     const user = await accountService.getAccountById(id);
@@ -142,7 +138,7 @@ export const createAccountHandler = async (req: Request, res: Response): Promise
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
  *     requestBody:
  *       required: true
  *       content:
@@ -158,11 +154,7 @@ export const createAccountHandler = async (req: Request, res: Response): Promise
  *         description: Pengguna tidak ditemukan
  */
 export const updateAccountHandler = async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(String(req.params.id), 10);
-  if (isNaN(id)) {
-    errorResponse(res, 'ID tidak valid', 400);
-    return;
-  }
+  const id = String(req.params.id);
 
   try {
     const user = await accountService.updateAccount(id, req.body);
@@ -187,7 +179,7 @@ export const updateAccountHandler = async (req: Request, res: Response): Promise
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
  *     responses:
  *       200:
  *         description: Akun pengguna berhasil dinonaktifkan
@@ -197,11 +189,7 @@ export const updateAccountHandler = async (req: Request, res: Response): Promise
  *         description: Pengguna tidak ditemukan
  */
 export const deactivateAccountHandler = async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(String(req.params.id), 10);
-  if (isNaN(id)) {
-    errorResponse(res, 'ID tidak valid', 400);
-    return;
-  }
+  const id = String(req.params.id);
 
   try {
     await accountService.deactivateAccount(id);
@@ -226,7 +214,7 @@ export const deactivateAccountHandler = async (req: Request, res: Response): Pro
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
  *     responses:
  *       200:
  *         description: Akun pengguna berhasil diaktifkan
@@ -236,11 +224,7 @@ export const deactivateAccountHandler = async (req: Request, res: Response): Pro
  *         description: Pengguna tidak ditemukan
  */
 export const activateAccountHandler = async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(String(req.params.id), 10);
-  if (isNaN(id)) {
-    errorResponse(res, 'ID tidak valid', 400);
-    return;
-  }
+  const id = String(req.params.id);
 
   try {
     await accountService.activateAccount(id);
@@ -265,7 +249,7 @@ export const activateAccountHandler = async (req: Request, res: Response): Promi
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
  *     responses:
  *       200:
  *         description: Akun pengguna berhasil dihapus
@@ -275,16 +259,33 @@ export const activateAccountHandler = async (req: Request, res: Response): Promi
  *         description: Pengguna tidak ditemukan
  */
 export const deleteAccountHandler = async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(String(req.params.id), 10);
-  if (isNaN(id)) {
-    errorResponse(res, 'ID tidak valid', 400);
-    return;
-  }
+  const id = String(req.params.id);
 
   try {
     const user = await accountService.deleteAccount(id);
     successResponse(res, user, 'Akun pengguna berhasil dihapus');
   } catch (err: any) {
     errorResponse(res, err.message, 404);
+  }
+};
+
+/**
+ * @swagger
+ * /api/accounts/prodi-options:
+ *   get:
+ *     summary: Mendapatkan daftar program studi untuk dropdown akun
+ *     tags: [Accounts]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Daftar program studi berhasil diambil
+ */
+export const getProdiOptionsHandler = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const prodis = await accountService.getProdiOptions();
+    successResponse(res, prodis, 'Daftar program studi berhasil diambil');
+  } catch (err: any) {
+    errorResponse(res, err.message, 500);
   }
 };

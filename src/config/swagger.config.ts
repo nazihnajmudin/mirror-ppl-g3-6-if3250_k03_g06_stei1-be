@@ -14,7 +14,7 @@ const options: swaggerJsdoc.Options = {
     },
     servers: [
       {
-        url: process.env.API_URL || `http://localhost:${process.env.PORT || 3001}`,
+        url: process.env.API_URL || `http://localhost:${process.env.PORT || 8000}`,
         description: 'Development server',
       },
     ],
@@ -30,22 +30,22 @@ const options: swaggerJsdoc.Options = {
         ProdiSummary: {
           type: 'object',
           properties: {
-            id: { type: 'integer' },
-            nama: { type: 'string' },
+            id: { type: 'string' },
+            fullname: { type: 'string' },
           },
         },
         User: {
           type: 'object',
           properties: {
-            id: { type: 'integer' },
+            id: { type: 'string' },
             email: { type: 'string', format: 'email' },
             name: { type: 'string' },
             role: {
               type: 'string',
-              enum: ['ADMIN_INSTITUSI', 'PIMPINAN', 'KAPRODI', 'ADMIN_PRODI', 'DOSEN'],
+              enum: ['SUPER_ADMIN', 'PIMPINAN', 'KAPRODI', 'TIM_PRODI'],
             },
             isActive: { type: 'boolean' },
-            prodiId: { type: 'integer', nullable: true },
+            prodiId: { type: 'string', nullable: true },
             prodi: {
               oneOf: [{ $ref: '#/components/schemas/ProdiSummary' }, { type: 'null' }],
             },
@@ -70,16 +70,16 @@ const options: swaggerJsdoc.Options = {
             password: { type: 'string', format: 'password', example: 'password123' },
             role: {
               type: 'string',
-              enum: ['ADMIN_INSTITUSI', 'PIMPINAN', 'KAPRODI', 'ADMIN_PRODI', 'DOSEN'],
+              enum: ['SUPER_ADMIN', 'PIMPINAN', 'KAPRODI', 'TIM_PRODI'],
             },
-            prodiId: { type: 'integer', nullable: true },
+            prodiId: { type: 'string', nullable: true },
           },
         },
         CreateAccountRequest: {
           type: 'object',
           required: ['email', 'name', 'role'],
           description:
-            'Untuk role DOSEN, KAPRODI, dan ADMIN_PRODI, field prodiId wajib diisi.',
+            'Untuk role TIM_PRODI dan KAPRODI, field prodiId wajib diisi.',
           properties: {
             email: { type: 'string', format: 'email', example: 'dosen@itb.ac.id' },
             name: { type: 'string', minLength: 3, maxLength: 100, example: 'Budi Santoso' },
@@ -91,23 +91,23 @@ const options: swaggerJsdoc.Options = {
             },
             role: {
               type: 'string',
-              enum: ['ADMIN_INSTITUSI', 'PIMPINAN', 'KAPRODI', 'ADMIN_PRODI', 'DOSEN'],
+              enum: ['SUPER_ADMIN', 'PIMPINAN', 'KAPRODI', 'TIM_PRODI'],
             },
-            prodiId: { type: 'integer', nullable: true },
+            prodiId: { type: 'string', nullable: true },
           },
         },
         UpdateAccountRequest: {
           type: 'object',
           description:
-            'Jika role diubah menjadi DOSEN, KAPRODI, atau ADMIN_PRODI maka prodiId wajib diisi.',
+            'Jika role diubah menjadi TIM_PRODI atau KAPRODI maka prodiId wajib diisi.',
           properties: {
             name: { type: 'string', minLength: 3, maxLength: 100 },
             role: {
               type: 'string',
-              enum: ['ADMIN_INSTITUSI', 'PIMPINAN', 'KAPRODI', 'ADMIN_PRODI', 'DOSEN'],
+              enum: ['SUPER_ADMIN', 'PIMPINAN', 'KAPRODI', 'TIM_PRODI'],
             },
             isActive: { type: 'boolean' },
-            prodiId: { type: 'integer', nullable: true },
+            prodiId: { type: 'string', nullable: true },
           },
         },
         SuccessResponse: {

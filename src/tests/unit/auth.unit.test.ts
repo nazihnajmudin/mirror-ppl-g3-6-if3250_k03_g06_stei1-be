@@ -1,77 +1,117 @@
 import * as authService from '../../services/auth.service';
-import prisma from '../../config/database';
+import prisma from '../../config/database.config';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { Role } from '@prisma/client';
 
-jest.mock('../../config/database', () => ({
-  __esModule: true,
-  default: {
-    user: {
-      findUnique: jest.fn(),
-      create: jest.fn(),
-    },
+jest.mock('../../config/database.config', () => ({
+  user: {
+    findUnique: jest.fn(),
+    create: jest.fn(),
   },
 }));
 
-jest.mock('bcryptjs');
-jest.mock('jsonwebtoken');
+jest.mock('bcryptjs', () => ({
+  hash: jest.fn(),
+  compare: jest.fn(),
+}));
 
-describe('Auth Service - Unit Test', () => {
+jest.mock('jsonwebtoken', () => ({
+  sign: jest.fn(),
+}));
+
+describe('Auth Service Unit Tests', () => {
+  const mockUser = {
+    id: 'user-123',
+    email: 'test@example.com',
+    password: 'hashedPassword',
+    name: 'Test User',
+    role: Role.TIM_PRODI,
+    isActive: true,
+    prodiId: 'prodi-456',
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.JWT_SECRET = 'testsecret';
-    process.env.JWT_EXPIRES_IN = '2d';
   });
 
-  describe('login()', () => {
-    it('harus mengirim eror jika user tidak ditemukan', async () => {
-      jest.mocked(prisma.user.findUnique).mockResolvedValue(null);
+  describe('register', () => {
+    it('should create a new user and return token', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
+      (prisma.user.create as jest.Mock).mockResolvedValue(mockUser);
+      (jwt.sign as jest.Mock).mockReturnValue('mockToken');
 
-      await expect(authService.login({ email: 'test@itb.ac.id', password: '123' }))
-        .rejects.toThrow('Email atau password salah');
-    });
-
-    it('harus mengirim eror jika akun tidak aktif', async () => {
-      const mockUserInactive = { 
-        id: 1,
-        email: 'test_account@itb.ac.id', 
+      const result = await authService.register({
+        email: 'test@example.com',
         name: 'Test User',
         password: 'password123',
-        role: 'DOSEN', 
-        isActive: false, 
-        prodiId: null,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
+        role: Role.TIM_PRODI,
+        prodiId: 'prodi-456',
+      });
 
-      jest.mocked(prisma.user.findUnique).mockResolvedValue(mockUserInactive as any);
-
-      await expect(authService.login({ email: 'test@itb.ac.id', password: '123' }))
-        .rejects.toThrow('Akun Anda dinonaktifkan');
+      expect(prisma.user.create).toHaveBeenCalled();
+      expect(result.user.email).toBe('test@example.com');
+      expect(result.token).toBe('mockToken');
     });
 
-    it('harus mengembalikan user dan token jika berhasil', async () => {
-      const mockUserActive = { 
-        id: 1,
-        email: 'test@itb.ac.id', 
+    it('should throw error if email already exists', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+
+      await expect(authService.register({
+        email: 'test@example.com',
         name: 'Test User',
-        password: 'hashedPassword',
-        role: 'DOSEN' as any,
-        isActive: true, 
-        prodiId: null,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
+        password: 'password123',
+        role: Role.TIM_PRODI,
+        prodiId: 'prodi-456',
+      })).rejects.toThrow('Email sudah terdaftar');
+    });
+  });
 
-      jest.mocked(prisma.user.findUnique).mockResolvedValue(mockUserActive as any);
-      jest.mocked(bcrypt.compare).mockImplementation(() => Promise.resolve(true));
-      jest.mocked(jwt.sign).mockImplementation(() => 'mocked_token');
+  describe('login', () => {
+    it('should return user and token on successful login', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      (jwt.sign as jest.Mock).mockReturnValue('mockToken');
 
-      const result = await authService.login({ email: 'test@itb.ac.id', password: '123' });
+      const result = await authService.login({
+        email: 'test@example.com',
+        password: 'password123',
+      });
 
-      expect(result).toHaveProperty('token', 'mocked_token');
+      expect(result.user.email).toBe('test@example.com');
+      expect(result.token).toBe('mockToken');
       expect(result.user).not.toHaveProperty('password');
-      expect(result.user.email).toBe('test@itb.ac.id');
+    });
+
+    it('should throw error if user not found', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(authService.login({
+        email: 'notfound@example.com',
+        password: 'password123',
+      })).rejects.toThrow('Email atau password salah');
+    });
+
+    it('should throw error if password is incorrect', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      await expect(authService.login({
+        email: 'test@example.com',
+        password: 'wrongpassword',
+      })).rejects.toThrow('Email atau password salah');
+    });
+
+    it('should throw error if account is inactive', async () => {
+      const inactiveUser = { ...mockUser, isActive: false };
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(inactiveUser);
+
+      await expect(authService.login({
+        email: 'test@example.com',
+        password: 'password123',
+      })).rejects.toThrow('Akun Anda dinonaktifkan');
     });
   });
 });

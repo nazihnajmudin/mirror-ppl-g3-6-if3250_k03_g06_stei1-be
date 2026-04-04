@@ -1,26 +1,32 @@
 import request from 'supertest';
 import app from '../../app'; 
-import prisma from '../../config/database';
+import prisma from '../../config/database.config';
+import { Role } from '@prisma/client';
 
 describe('Auth API - Integration Test', () => {
   
   const testUser = {
-    "email": "test_account@itb.ac.id",
-    "name": "Budi Santoso",
-    "password": "password123",
-    "role": "ADMIN_INSTITUSI",
-    "prodiId": 1
+    email: "test_account@itb.ac.id",
+    name: "Budi Santoso",
+    password: "password123",
+    role: Role.SUPER_ADMIN,
+    prodiId: "550e8400-e29b-41d4-a716-446655440001"
   };
 
   beforeAll(async () => {
-    await prisma.prodi.upsert({
-      where: { id: 1 },
-      update: {},
-      create: { 
-        id: 1, 
-        nama: "Teknik Informatika" 
-      }
-    });
+    // Check if prodi exists
+    let existingProdi = await prisma.prodi.findUnique({ where: { id: testUser.prodiId } });
+    if (!existingProdi) {
+      existingProdi = await prisma.prodi.findUnique({ where: { fullname: "Test Prodi Auth" } });
+    }
+
+    if (!existingProdi) {
+      await prisma.prodi.create({
+        data: { id: testUser.prodiId, fullname: "Test Prodi Auth", abbreviation: "TPA", degree: "S1" }
+      });
+    } else {
+      testUser.prodiId = existingProdi.id;
+    }
 
     await prisma.user.deleteMany({
       where: { email: testUser.email }
@@ -78,10 +84,6 @@ describe('Auth API - Integration Test', () => {
         .get('/api/auth/me')
         .set('Authorization', `Bearer ${token}`) 
         .send();
-
-      if (res.status !== 200) {
-        console.log("ME_ERROR:", res.body);
-      }
 
       expect(res.status).toBe(200);
       expect(res.body.data).toHaveProperty('email', testUser.email);

@@ -1,26 +1,36 @@
 import request from 'supertest';
 import app from '../../app'; 
-import prisma from '../../config/database';
+import prisma from '../../config/database.config';
 
 describe('Account Management - Integration Test', () => {
   let adminToken: string;
-  let testUserId: number;
+  let testUserId: string;
 
   const testUser = {
     email: "admin_test@itb.ac.id",
     name: "Admin Test",
     password: "password123",
-    role: "ADMIN_INSTITUSI",
-    prodiId: 1
+    role: "SUPER_ADMIN" as any,
+    prodiId: "550e8400-e29b-41d4-a716-446655440000"
   };
 
   beforeAll(async () => {
-    await prisma.prodi.upsert({
-      where: { id: 1 },
-      update: {},
-      create: { id: 1, nama: "Teknik Informatika" }
-    });
+    // Check if prodi exists by ID or Fullname
+    let existingProdi = await prisma.prodi.findUnique({ where: { id: "550e8400-e29b-41d4-a716-446655440000" } });
+    
+    if (!existingProdi) {
+      existingProdi = await prisma.prodi.findUnique({ where: { fullname: "Test Prodi UUID" } });
+    }
 
+    if (!existingProdi) {
+      existingProdi = await prisma.prodi.create({
+        data: { id: "550e8400-e29b-41d4-a716-446655440000", fullname: "Test Prodi UUID", abbreviation: "TP", degree: "S1" }
+      });
+    }
+
+    // Update testUser with the actual prodiId found or created
+    testUser.prodiId = existingProdi.id;
+    
     await prisma.user.deleteMany({ where: { email: testUser.email } });
     
     const registerRes = await request(app)
@@ -53,8 +63,8 @@ describe('POST /api/accounts', () => {
         email: "staff_baru@itb.ac.id",
         name: "Dosen Baru",
         password: "password123",
-        role: "DOSEN",
-        prodiId: 1
+        role: "TIM_PRODI" as any,
+        prodiId: testUser.prodiId
       };
 
       const res = await request(app)
@@ -80,8 +90,8 @@ describe('POST /api/accounts', () => {
         email: testUser.email, 
         name: "Duplicate",
         password: "password123",
-        role: "DOSEN",
-        prodiId: 1
+        role: "TIM_PRODI" as any,
+        prodiId: testUser.prodiId
       };
 
       const res = await request(app)
@@ -89,7 +99,7 @@ describe('POST /api/accounts', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .send(duplicateUser);
 
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(409);
     });
   });
 

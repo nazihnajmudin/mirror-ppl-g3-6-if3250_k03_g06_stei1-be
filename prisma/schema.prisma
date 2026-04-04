@@ -1,12 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  //  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -15,33 +8,102 @@ datasource db {
 }
 
 model Prodi {
-  id          Int      @id @default(autoincrement())
-  nama        String   @unique
-  akreditasi  String?  
-  users       User[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-enum Role {
-  ADMIN_INSTITUSI
-  PIMPINAN
-  KAPRODI
-  ADMIN_PRODI
-  DOSEN
+  id            String             @id @default(uuid())
+  fullname      String             @unique
+  abbreviation  String?
+  degree        String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  accreditation AccreditationInfo?
+  documentLED   DocumentLED[]
+  documentLKPS  DocumentLKPS[]
+  assignments   ProdiAssignment[]
+  users         User[]
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String
-  password  String?
-  role      Role
-  isActive  Boolean  @default(true)
+  id          String            @id @default(uuid())
+  email       String            @unique
+  name        String
+  password    String
+  role        Role
+  isActive    Boolean           @default(true)
+  prodiId     String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  documentLED DocumentLED[]
+  assignments ProdiAssignment[]
+  prodi       Prodi?            @relation(fields: [prodiId], references: [id])
+}
 
-  prodiId   Int?
-  prodi     Prodi?   @relation(fields: [prodiId], references: [id])
-
+model ProdiAssignment {
+  id        String   @id @default(uuid())
+  userId    String
+  prodiId   String
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  prodi     Prodi    @relation(fields: [prodiId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, prodiId])
+}
+
+model AccreditationInfo {
+  id             String    @id @default(uuid())
+  prodiId        String    @unique
+  grade          String?
+  startDate      DateTime?
+  endDate        DateTime?
+  certificateUrl String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  prodi          Prodi     @relation(fields: [prodiId], references: [id])
+}
+
+model DocumentLKPS {
+  id               String         @id @default(uuid())
+  prodiId          String
+  name             String?
+  status           DocumentStatus @default(DRAFT)
+  content          Json?
+  filePath         String?
+  originalFilename String?
+  lockedAt         DateTime?
+  lockedBy         String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  periode          String?
+  prodi            Prodi          @relation(fields: [prodiId], references: [id])
+}
+
+model DocumentLED {
+  id           String         @id @default(uuid())
+  prodiId      String
+  name         String?
+  status       DocumentStatus @default(DRAFT)
+  content      String?
+  lockedAt     DateTime?
+  lockedBy     String?
+  ukuran       Int?
+  periode      String
+  versi        Int
+  pengunggahId String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  deletedAt    DateTime?
+  pengunggah   User           @relation(fields: [pengunggahId], references: [id])
+  prodi        Prodi          @relation(fields: [prodiId], references: [id])
+
+  @@unique([prodiId, periode, versi])
+}
+
+enum Role {
+  SUPER_ADMIN
+  PIMPINAN
+  KAPRODI
+  TIM_PRODI
+}
+
+enum DocumentStatus {
+  DRAFT
+  FINAL
 }

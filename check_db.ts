@@ -1,0 +1,1 @@
+import { PrismaClient } from '@prisma/client'; const prisma = new PrismaClient(); async function main() { const docs = await prisma.documentLKPS.findMany({ select: { id: true, name: true, periode: true, createdAt: true } }); console.log(JSON.stringify(docs, null, 2)); } main();

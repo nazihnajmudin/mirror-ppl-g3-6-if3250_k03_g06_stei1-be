@@ -1,12 +1,14 @@
 import bcrypt from 'bcryptjs';
 import prisma from '../config/database.config';
-import { Role } from '@prisma/client';
+import { Role, Prisma } from '@prisma/client';
 import { CreateAccountInput, UpdateAccountInput } from '../validators/account.validator';
 
+// Number of salt rounds for bcrypt hashing
 const SALT_ROUNDS = 10;
 
+// Helper function to determine if a role requires an associated prodiId
 const requiresProdiRole = (role: Role): boolean => {
-  return role === Role.DOSEN || role === Role.KAPRODI || role === Role.ADMIN_PRODI;
+  return role === Role.TIM_PRODI || role === Role.KAPRODI;
 };
 
 const userSelect = {
@@ -16,38 +18,43 @@ const userSelect = {
   role: true,
   isActive: true,
   prodiId: true,
-  prodi: { select: { id: true, nama: true } },
+  prodi: { select: { id: true, fullname: true } },
   createdAt: true,
   updatedAt: true,
 };
 
+// Get all accounts with optional filters
 export const getAllAccounts = async (filters?: {
   role?: Role;
-  prodiId?: number;
+  prodiId?: string;
   isActive?: boolean;
 }) => {
+  const where: Prisma.UserWhereInput = {
+    ...(filters?.role && { role: filters.role }),
+    ...(filters?.prodiId !== undefined && { prodiId: filters.prodiId }),
+    ...(filters?.isActive !== undefined && { isActive: filters.isActive }),
+  };
 
   return prisma.user.findMany({
-    where: {
-      ...(filters?.role && { role: filters.role }),
-      ...(filters?.prodiId !== undefined && { prodiId: filters.prodiId }),
-      ...(filters?.isActive !== undefined && { isActive: filters.isActive }),
-    },
+    where,
     select: userSelect,
     orderBy: { createdAt: 'desc' },
   });
 };
 
-export const getAccountById = async (id: number) => {
+// Get a single account by Id
+export const getAccountById = async (id: string) => {
   const user = await prisma.user.findUnique({ where: { id }, select: userSelect });
   if (!user) throw new Error('Pengguna tidak ditemukan');
   return user;
 };
 
+// get a single account by email
 export const getAccountByEmail = async (email: string) => {
   return prisma.user.findUnique({ where: { email }, select: userSelect });
 };
 
+// Create a new account
 export const createAccount = async (data: CreateAccountInput) => {
   const existing = await prisma.user.findUnique({ where: { email: data.email } });
   if (existing) throw new Error('Email sudah terdaftar dalam sistem');
@@ -62,7 +69,7 @@ export const createAccount = async (data: CreateAccountInput) => {
     if (!prodi) throw new Error('Program studi tidak ditemukan');
   }
 
-  const hashedPassword = data.password ? await bcrypt.hash(data.password, SALT_ROUNDS) : null;
+  const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
 
   return prisma.user.create({
     data: {
@@ -76,10 +83,8 @@ export const createAccount = async (data: CreateAccountInput) => {
   });
 };
 
-export const updateAccount = async (
-  id: number,
-  data: UpdateAccountInput
-) => {
+// Update an existing account
+export const updateAccount = async ( id: string, data: UpdateAccountInput) => {
   const existing = await prisma.user.findUnique({ where: { id } });
   if (!existing) throw new Error('Pengguna tidak ditemukan');
 
@@ -90,6 +95,7 @@ export const updateAccount = async (
 
   const effectiveRole = data.role ?? existing.role;
   const effectiveProdiId = data.prodiId === undefined ? existing.prodiId : data.prodiId;
+
   const requiresProdi = requiresProdiRole(effectiveRole);
   if (requiresProdi && !effectiveProdiId) {
     throw new Error('ProdiId wajib diisi untuk role ini');
@@ -97,12 +103,16 @@ export const updateAccount = async (
 
   return prisma.user.update({
     where: { id },
-    data,
+    data: {
+      ...data,
+      prodiId: data.prodiId === undefined ? undefined : (data.prodiId ?? null),
+    },
     select: userSelect,
   });
 };
 
-export const deactivateAccount = async (id: number) => {
+// Deactivate an account (soft delete)
+export const deactivateAccount = async (id: string) => {
   await getAccountById(id);
   return prisma.user.update({
     where: { id },
@@ -111,7 +121,8 @@ export const deactivateAccount = async (id: number) => {
   });
 };
 
-export const activateAccount = async (id: number) => {
+// Activate an account
+export const activateAccount = async (id: string) => {
   await getAccountById(id);
   return prisma.user.update({
     where: { id },
@@ -120,8 +131,22 @@ export const activateAccount = async (id: number) => {
   });
 };
 
-export const deleteAccount = async (id: number) => {
+// Permanently delete an account
+export const deleteAccount = async (id: string) => {
   const existing = await prisma.user.findUnique({ where: { id } });
   if (!existing) throw new Error('Pengguna tidak ditemukan');
   return prisma.user.delete({ where: { id }, select: userSelect });
+};
+
+// Get prodi options for dropdowns
+export const getProdiOptions = async () => {
+  return prisma.prodi.findMany({
+    select: {
+      id: true,
+      fullname: true,
+      abbreviation: true,
+      degree: true,
+    },
+    orderBy: { fullname: 'asc' },
+  });
 };

@@ -11,7 +11,7 @@ export interface RegisterInput {
   name: string;
   password: string;
   role: Role;
-  prodiId?: number | null;
+  prodiId?: string | null;
 }
 
 export interface LoginInput {
@@ -48,7 +48,7 @@ export const register = async (input: RegisterInput) => {
       createdAt: true,
     },
   });
-  const token = signToken({ userId: user.id, email: user.email, role: user.role, prodiId: user.prodiId });
+  const token = signToken({ userId: user.id, name: user.name, email: user.email, role: user.role, prodiId: user.prodiId });
   return { user, token };
 };
 
@@ -62,7 +62,7 @@ export const login = async (input: LoginInput) => {
   
   if (!valid) throw new Error('Email atau password salah');
   
-  const token = signToken({ userId: user.id, email: user.email, role: user.role, prodiId: user.prodiId });
+  const token = signToken({ userId: user.id, name: user.name, email: user.email, role: user.role, prodiId: user.prodiId });
   const { password: _pw, ...userWithoutPassword } = user;
   return { user: userWithoutPassword, token };
 };

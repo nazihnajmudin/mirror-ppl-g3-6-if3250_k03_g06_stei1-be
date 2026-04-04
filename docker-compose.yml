@@ -25,6 +25,8 @@ services:
     restart: always
     ports:
       - "${PORT:-8000}:8000"
+    volumes:
+      - ./uploads:/app/uploads
     depends_on:
       postgres-db:
         condition: service_healthy
