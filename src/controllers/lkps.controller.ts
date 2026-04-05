@@ -304,7 +304,7 @@ export const getLKPSHistoryHandler = async (req: Request, res: Response) => {
 export const exportLKPSHandler = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    const document = await lkpsService.getLKPSDocumentById(id);
+    const document = await lkpsService.getLKPSDocumentById(id) as any;
 
     if (!document) {
       return errorResponse(res, 'Dokumen tidak ditemukan', 404);
