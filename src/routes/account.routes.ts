@@ -27,7 +27,7 @@ router.get('/prodi-options', getProdiOptionsHandler);
 // All account management routes require authentication and SUPER_ADMIN role
 router.use(authenticate);
 
-router.get('/', requireRole(Role.SUPER_ADMIN, Role.KAPRODI), getAllAccountsHandler);
+router.get('/', requireRole(Role.SUPER_ADMIN, Role.PIMPINAN, Role.KAPRODI, Role.TIM_PRODI), getAllAccountsHandler);
 router.get('/:id', requireRole(Role.SUPER_ADMIN), getAccountByIdHandler);
 router.post('/', requireRole(Role.SUPER_ADMIN), validate(createAccountSchema), createAccountHandler);
 router.put('/:id', requireRole(Role.SUPER_ADMIN), validate(updateAccountSchema), updateAccountHandler);
