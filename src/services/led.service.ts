@@ -81,7 +81,7 @@ export const exportLED = async (prodiId: string, periode: string) => {
  */
 export const getLEDHistory = async (prodiId: string, periode: string) => {
     return prisma.documentLED.findMany({
-        where: { prodiId, periode, deletedAt: null },
+        where: { prodiId, periode, deletedAt: null } as any,
         orderBy: { versi: 'desc' },
         include: { pengunggah: { select: { name: true, role: true } } }
     });
@@ -141,7 +141,7 @@ export const exportLEDById = async (id: string) => {
 export const softDeleteDocument = async (id: string) => {
     return prisma.documentLED.update({
         where: { id },
-        data: { deletedAt: new Date() }
+        data: { deletedAt: new Date() } as any
     });
 };
 
@@ -154,7 +154,7 @@ export const softDeleteDocument = async (id: string) => {
 export const softDeleteAllDrafts = async (prodiId: string, periode: string) => {
     // Cek apakah ada dokumen FINAL 
     const hasFinal = await prisma.documentLED.findFirst({
-        where: { prodiId, periode, status: 'FINAL', deletedAt: null }
+        where: { prodiId, periode, status: 'FINAL', deletedAt: null } as any
     });
 
     if (!hasFinal) {
@@ -167,7 +167,7 @@ export const softDeleteAllDrafts = async (prodiId: string, periode: string) => {
             periode, 
             status: 'DRAFT', 
             deletedAt: null 
-        },
-        data: { deletedAt: new Date() }
+        } as any,
+        data: { deletedAt: new Date() } as any
     });
 };

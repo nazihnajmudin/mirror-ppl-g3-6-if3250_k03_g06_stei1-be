@@ -18,7 +18,7 @@ export const createLKPSDocument = async (
       filePath,
       originalFilename,
       periode,
-    },
+    } as any,
   });
 };
 
