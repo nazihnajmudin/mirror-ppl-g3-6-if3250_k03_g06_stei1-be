@@ -6,6 +6,7 @@ const assignmentSelect = {
   id: true,
   userId: true,
   prodiId: true,
+  kriteria: true,
   createdAt: true,
   user: { select: { id: true, name: true, email: true, role: true } },
   prodi: { select: { id: true, fullname: true } },
@@ -39,7 +40,7 @@ export const createPenugasan = async (data: CreatePenugasanInput) => {
   if (existing) throw new Error('Penugasan sudah ada untuk pengguna dan program studi ini');
 
   return prisma.prodiAssignment.create({
-    data: { userId: data.userId, prodiId: data.prodiId },
+    data: { userId: data.userId, prodiId: data.prodiId, kriteria: data.kriteria || [] },
     select: assignmentSelect,
   });
 };
