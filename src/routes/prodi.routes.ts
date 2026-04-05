@@ -36,7 +36,7 @@ router.get(
 
 router.get(
   '/:id',
-  requireRole(Role.SUPER_ADMIN, Role.PIMPINAN, Role.KAPRODI),
+  requireRole(Role.SUPER_ADMIN, Role.PIMPINAN, Role.KAPRODI, Role.TIM_PRODI),
   getProdiByIdHandler
 );
 
