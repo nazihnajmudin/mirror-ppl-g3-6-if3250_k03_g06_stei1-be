@@ -6,6 +6,50 @@ import prisma from '../config/database.config';
 import fs from 'fs';
 import path from 'path';
 
+/**
+ * @swagger
+ * /api/lkps/preview:
+ *   post:
+ *     summary: Preview file Excel LKPS sebelum diupload
+ *     description: Melakukan parsing pada file Excel LKPS untuk menampilkan preview data tanpa menyimpan ke database
+ *     tags: [LKPS]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: File Excel LKPS (.xlsx)
+ *             required:
+ *               - file
+ *     responses:
+ *       200:
+ *         description: File berhasil diurai, menampilkan preview data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   description: Data yang sudah diparsing dari Excel
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: File tidak ditemukan
+ *       401:
+ *         description: Tidak terautentikasi
+ *       500:
+ *         description: Gagal mengurai file
+ */
 export const previewLKPSHandler = async (req: Request, res: Response) => {
   try {
     if (!req.file) {
@@ -20,6 +64,80 @@ export const previewLKPSHandler = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/lkps/confirm:
+ *   post:
+ *     summary: Konfirmasi dan simpan dokumen LKPS ke database
+ *     description: Menerima file Excel LKPS, menyimpannya ke server, dan membuat record di database. Admin dapat menentukan prodiId, sedangkan Kaprodi akan otomatis menggunakan prodiId mereka
+ *     tags: [LKPS]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: File Excel LKPS (.xlsx)
+ *               prodiId:
+ *                 type: string
+ *                 format: id
+ *                 description: ID program studi (opsional untuk admin, required untuk kaprodi)
+ *               name:
+ *                 type: string
+ *                 description: Nama dokumen LKPS (opsional, default berdasarkan filename)
+ *               periode:
+ *                 type: string
+ *                 description: Periode/tahun LKPS (opsional)
+ *             required:
+ *               - file
+ *     responses:
+ *       201:
+ *         description: LKPS berhasil diupload dan disimpan ke database
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: id
+ *                     prodiId:
+ *                       type: string
+ *                       format: id
+ *                     name:
+ *                       type: string
+ *                     filePath:
+ *                       type: string
+ *                     originalFilename:
+ *                       type: string
+ *                     periode:
+ *                       type: string
+ *                     status:
+ *                       type: string
+ *                       enum: [DRAFT, FINAL]
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: File atau Program studi tidak ditemukan
+ *       401:
+ *         description: Tidak terautentikasi
+ *       500:
+ *         description: Gagal mengupload LKPS
+ */
 export const confirmLKPSHandler = async (req: Request, res: Response) => {
   try {
     console.log('--- LKPS UPLOAD DEBUG ---');
@@ -75,6 +193,66 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/lkps/history/{prodiId}:
+ *   get:
+ *     summary: Mendapatkan riwayat dokumen LKPS untuk program studi tertentu
+ *     description: Mengambil semua dokumen LKPS yang pernah dibuat oleh suatu program studi, diurutkan dari terbaru hingga terlama
+ *     tags: [LKPS]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: prodiId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: id
+ *         description: ID program studi untuk mengambil riwayat dokumentnya
+ *     responses:
+ *       200:
+ *         description: Riwayat LKPS berhasil diambil
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         format: id
+ *                       prodiId:
+ *                         type: string
+ *                         format: id
+ *                       name:
+ *                         type: string
+ *                       periode:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                         enum: [DRAFT, FINAL]
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       prodi:
+ *                         type: object
+ *                         properties:
+ *                           fullname:
+ *                             type: string
+ *                 message:
+ *                   type: string
+ *       401:
+ *         description: Tidak terautentikasi
+ *       500:
+ *         description: Gagal mengambil riwayat
+ */
 export const getLKPSHistoryHandler = async (req: Request, res: Response) => {
   try {
     const prodiId = req.params.prodiId as string;
@@ -86,6 +264,43 @@ export const getLKPSHistoryHandler = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/lkps/export/{id}:
+ *   get:
+ *     summary: Mengekspor dokumen LKPS sebagai file Excel
+ *     description: Mengambil dokumen LKPS dari database dan mengirimnya sebagai file Excel untuk diunduh. Jika file original masih tersedia, akan dikirim file aslinya. Jika tidak, akan generate ulang dari data yang tersimpan di database
+ *     tags: [LKPS]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: id
+ *         description: ID dokumen LKPS yang akan diunduh
+ *     responses:
+ *       200:
+ *         description: File Excel LKPS berhasil digenerate dan siap diunduh
+ *         content:
+ *           application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *         headers:
+ *           Content-Disposition:
+ *             schema:
+ *               type: string
+ *               example: 'attachment; filename="LKPS_Informatika.xlsx"'
+ *       401:
+ *         description: Tidak terautentikasi
+ *       404:
+ *         description: Dokumen tidak ditemukan atau data dokumen tidak lengkap
+ *       500:
+ *         description: Gagal mengekspor LKPS
+ */
 export const exportLKPSHandler = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
