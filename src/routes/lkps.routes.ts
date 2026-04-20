@@ -5,6 +5,7 @@ import {
   confirmLKPSHandler,
   getLKPSHistoryHandler,
   exportLKPSHandler,
+  getLKPSDocumentHandler,
 } from '../controllers/lkps.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 
@@ -31,5 +32,8 @@ router.get('/history/:prodiId', getLKPSHistoryHandler);
 
 // 4. Export as Excel
 router.get('/export/:id', exportLKPSHandler);
+
+// 5. Get Single Document (Place this last to avoid intercepting other specific routes)
+router.get('/:id', getLKPSDocumentHandler);
 
 export default router;

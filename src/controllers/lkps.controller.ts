@@ -177,9 +177,17 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
     
     fs.writeFileSync(fullPath, file.buffer);
 
+    // Parse the file to get content for Mirror Data Entry
+    let content = {};
+    try {
+      content = await parseLKPSExcel(file.buffer);
+    } catch (parseError) {
+      console.error('Failed to parse LKPS content on confirm, storing empty content', parseError);
+    }
+
     const document = await lkpsService.createLKPSDocument(
       targetProdiId, 
-      {}, // Empty content since we're just storing the binary file
+      content, 
       name || `LKPS - ${originalFilename}`, 
       filePath, 
       originalFilename,
@@ -261,6 +269,61 @@ export const getLKPSHistoryHandler = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Error getting history:', error);
     return errorResponse(res, 'Gagal mengambil riwayat', 500);
+  }
+};
+
+/**
+ * @swagger
+ * /api/lkps/{id}:
+ *   get:
+ *     summary: Mendapatkan detail satu dokumen LKPS
+ *     description: Mengambil data satu dokumen LKPS berdasarkan ID, termasuk konten datanya
+ *     tags: [LKPS]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: id
+ *         description: ID dokumen LKPS
+ *     responses:
+ *       200:
+ *         description: Dokumen berhasil diambil
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: Dokumen tidak ditemukan
+ *       500:
+ *         description: Gagal mengambil dokumen
+ */
+export const getLKPSDocumentHandler = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    console.log(`[LKPS Controller] Fetching document ID: ${id}`);
+    const document = await lkpsService.getLKPSDocumentById(id);
+    
+    if (!document) {
+      console.log(`[LKPS Controller] Document NOT FOUND: ${id}`);
+      return errorResponse(res, 'Dokumen tidak ditemukan', 404);
+    }
+    
+    console.log(`[LKPS Controller] Document FOUND: ${id}, content keys: ${document.content ? Object.keys(document.content as object).length : 0}`);
+    return successResponse(res, document, 'Berhasil mengambil dokumen LKPS');
+  } catch (error: any) {
+    console.error('Error getting document:', error);
+    return errorResponse(res, 'Gagal mengambil dokumen', 500);
   }
 };
 
