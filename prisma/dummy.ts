@@ -312,6 +312,42 @@ async function main() {
       });
     }
   }
+
+  // ==========================================
+  // SEEDING DUMMY: DOKUMEN TEMPLATE
+  // ==========================================
+  console.log('Seeding Document Template dummy data...');
+
+  const superAdmin = await prisma.user.findUnique({ where: { email: 'dummyadmin@email.com' } });
+
+  if (superAdmin) {
+    const dummyTemplates = [
+      {
+        id: 'template-dummy-infokom-led',
+        name: 'Template LED LAM Infokom',
+        type: 'LED' as any,
+        category: 'INFOKOM' as any,
+        content: 'dummy.docx',
+        uploadedById: superAdmin.id,
+      },
+      {
+        id: 'template-dummy-teknik-lkps',
+        name: 'Template LKPS LAM Teknik',
+        type: 'LKPS' as any,
+        category: 'TEKNIK' as any,
+        content: 'dummy.xlsx',
+        uploadedById: superAdmin.id,
+      }
+    ];
+
+    for (const template of dummyTemplates) {
+      await prisma.documentTemplate.upsert({
+        where: { id: template.id },
+        update: template,
+        create: template,
+      });
+    }
+  }
 }
 
 main()

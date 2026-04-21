@@ -5,6 +5,7 @@ import prodiRoutes from './prodi.routes';
 import penugasanRoutes from './penugasan.routes';
 import lkpsRoutes from './lkps.routes';
 import ledRoutes from './led.routes';
+import templateRoutes from './template.routes';
 
 const router = Router();
 
@@ -14,5 +15,6 @@ router.use('/prodi', prodiRoutes);
 router.use('/penugasan', penugasanRoutes);
 router.use('/lkps', lkpsRoutes);
 router.use('/led', ledRoutes);
+router.use('/templates', templateRoutes);
 
 export default router;

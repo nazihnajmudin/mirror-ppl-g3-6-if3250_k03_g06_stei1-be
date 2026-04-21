@@ -12,4 +12,11 @@ export interface IStorageProvider {
      * @param folder 
      */
     getFilePath(fileName: string, folder: string): string;
+
+    /**
+     * Menghapus file secara fisik dari storage
+     * @param fileName 
+     * @param folder 
+     */
+    delete(fileName: string, folder: string): Promise<boolean>;
 }
