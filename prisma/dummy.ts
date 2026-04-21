@@ -85,7 +85,7 @@ async function main() {
 
   for (const prodi of prodiSeeds) {
     const savedProdi = await prisma.prodi.upsert({
-      where: { fullname: prodi.fullname },
+      where: { id: `prodi-${prodi.key}` },
       update: {
         fullname: prodi.fullname,
         abbreviation: prodi.abbreviation,
@@ -195,8 +195,9 @@ async function main() {
     const resolvedProdiId = user.prodiKey ? prodiIdByKey[user.prodiKey] : null;
 
     await prisma.user.upsert({
-      where: { email: user.email },
+      where: { id: user.id },
       update: {
+        email: user.email,
         name: user.name,
         password: hashedPassword,
         role: user.role,
