@@ -6,11 +6,16 @@ import {
   getLKPSHistoryHandler,
   exportLKPSHandler,
   getLKPSDocumentHandler,
+  updateLKPSDocumentHandler,
 } from '../controllers/lkps.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 } 
+});
 
 /**
  * @swagger
@@ -21,19 +26,16 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 router.use(authenticate);
 
-// 1. Preview Excel upload
-router.post('/preview', upload.single('file'), previewLKPSHandler);
+// 1. Get/Update Single Document (Matches UUIDs, prioritized over history/export)
+router.get('/:id', getLKPSDocumentHandler);
+router.put('/:id', updateLKPSDocumentHandler);
 
-// 2. Confirm import (Save as Document + Save File)
+// 2. High priority fixed routes
+router.post('/preview', upload.single('file'), previewLKPSHandler);
 router.post('/confirm', upload.single('file'), confirmLKPSHandler);
 
-// 3. Get History for a Program
+// 3. History and Export
 router.get('/history/:prodiId', getLKPSHistoryHandler);
-
-// 4. Export as Excel
 router.get('/export/:id', exportLKPSHandler);
-
-// 5. Get Single Document (Place this last to avoid intercepting other specific routes)
-router.get('/:id', getLKPSDocumentHandler);
 
 export default router;

@@ -3,20 +3,19 @@ import { successResponse, errorResponse } from '../utils/response';
 import { parseLKPSExcel } from '../parsers/lkps.parser';
 import * as lkpsService from '../services/lkps.service';
 import prisma from '../config/database.config';
-import fs from 'fs';
 import path from 'path';
+import fs from 'fs';
 
 /**
  * @swagger
  * /api/lkps/preview:
  *   post:
  *     summary: Preview file Excel LKPS sebelum diupload
- *     description: Melakukan parsing pada file Excel LKPS untuk menampilkan preview data tanpa menyimpan ke database
+ *     description: Memparsing file Excel dan mengembalikan data dalam format JSON untuk direview user
  *     tags: [LKPS]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
- *       required: true
  *       content:
  *         multipart/form-data:
  *           schema:
@@ -25,12 +24,9 @@ import path from 'path';
  *               file:
  *                 type: string
  *                 format: binary
- *                 description: File Excel LKPS (.xlsx)
- *             required:
- *               - file
  *     responses:
  *       200:
- *         description: File berhasil diurai, menampilkan preview data
+ *         description: Berhasil memparsing file
  *         content:
  *           application/json:
  *             schema:
@@ -48,19 +44,20 @@ import path from 'path';
  *       401:
  *         description: Tidak terautentikasi
  *       500:
- *         description: Gagal mengurai file
+ *         description: Gagal memparsing file
  */
 export const previewLKPSHandler = async (req: Request, res: Response) => {
   try {
-    if (!req.file) {
+    const file = req.file;
+    if (!file) {
       return errorResponse(res, 'File tidak ditemukan', 400);
     }
 
-    const parsedData = await parseLKPSExcel(req.file.buffer);
-    return successResponse(res, parsedData, 'File berhasil diurai');
+    const data = await parseLKPSExcel(file.buffer);
+    return successResponse(res, data, 'Berhasil memparsing file LKPS');
   } catch (error: any) {
     console.error('Error previewing LKPS:', error);
-    return errorResponse(res, error.message || 'Gagal mengurai file', 500);
+    return errorResponse(res, 'Gagal memparsing file LKPS', 500);
   }
 };
 
@@ -68,13 +65,12 @@ export const previewLKPSHandler = async (req: Request, res: Response) => {
  * @swagger
  * /api/lkps/confirm:
  *   post:
- *     summary: Konfirmasi dan simpan dokumen LKPS ke database
- *     description: Menerima file Excel LKPS, menyimpannya ke server, dan membuat record di database. Admin dapat menentukan prodiId, sedangkan Kaprodi akan otomatis menggunakan prodiId mereka
+ *     summary: Konfirmasi dan simpan dokumen LKPS
+ *     description: Menyimpan data LKPS yang sudah diparsing ke database dan menyimpan file fisiknya
  *     tags: [LKPS]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
- *       required: true
  *       content:
  *         multipart/form-data:
  *           schema:
@@ -83,22 +79,17 @@ export const previewLKPSHandler = async (req: Request, res: Response) => {
  *               file:
  *                 type: string
  *                 format: binary
- *                 description: File Excel LKPS (.xlsx)
  *               prodiId:
  *                 type: string
  *                 format: id
- *                 description: ID program studi (opsional untuk admin, required untuk kaprodi)
- *               name:
- *                 type: string
- *                 description: Nama dokumen LKPS (opsional, default berdasarkan filename)
  *               periode:
  *                 type: string
- *                 description: Periode/tahun LKPS (opsional)
- *             required:
- *               - file
+ *                 example: "2024"
+ *               name:
+ *                 type: string
  *     responses:
  *       201:
- *         description: LKPS berhasil diupload dan disimpan ke database
+ *         description: Berhasil menyimpan dokumen
  *         content:
  *           application/json:
  *             schema:
@@ -111,28 +102,10 @@ export const previewLKPSHandler = async (req: Request, res: Response) => {
  *                   properties:
  *                     id:
  *                       type: string
- *                       format: id
- *                     prodiId:
- *                       type: string
- *                       format: id
- *                     name:
- *                       type: string
- *                     filePath:
- *                       type: string
- *                     originalFilename:
- *                       type: string
- *                     periode:
- *                       type: string
- *                     status:
- *                       type: string
- *                       enum: [DRAFT, FINAL]
- *                     createdAt:
- *                       type: string
- *                       format: date-time
  *                 message:
  *                   type: string
  *       400:
- *         description: File atau Program studi tidak ditemukan
+ *         description: Data tidak lengkap
  *       401:
  *         description: Tidak terautentikasi
  *       500:
@@ -140,12 +113,6 @@ export const previewLKPSHandler = async (req: Request, res: Response) => {
  */
 export const confirmLKPSHandler = async (req: Request, res: Response) => {
   try {
-    console.log('--- LKPS UPLOAD DEBUG ---');
-    console.log('Headers:', req.headers['content-type']);
-    console.log('Body Keys:', Object.keys(req.body));
-    console.log('Periode value:', req.body.periode);
-    console.log('-------------------------');
-    
     const { prodiId, name, periode } = req.body;
     const file = req.file;
     
@@ -220,42 +187,7 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
  *         description: ID program studi untuk mengambil riwayat dokumentnya
  *     responses:
  *       200:
- *         description: Riwayat LKPS berhasil diambil
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id:
- *                         type: string
- *                         format: id
- *                       prodiId:
- *                         type: string
- *                         format: id
- *                       name:
- *                         type: string
- *                       periode:
- *                         type: string
- *                       status:
- *                         type: string
- *                         enum: [DRAFT, FINAL]
- *                       createdAt:
- *                         type: string
- *                         format: date-time
- *                       prodi:
- *                         type: object
- *                         properties:
- *                           fullname:
- *                             type: string
- *                 message:
- *                   type: string
+ *         description: Berhasil mengambil riwayat
  *       401:
  *         description: Tidak terautentikasi
  *       500:
@@ -292,17 +224,6 @@ export const getLKPSHistoryHandler = async (req: Request, res: Response) => {
  *     responses:
  *       200:
  *         description: Dokumen berhasil diambil
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: object
- *                 message:
- *                   type: string
  *       404:
  *         description: Dokumen tidak ditemukan
  *       500:
@@ -311,15 +232,12 @@ export const getLKPSHistoryHandler = async (req: Request, res: Response) => {
 export const getLKPSDocumentHandler = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    console.log(`[LKPS Controller] Fetching document ID: ${id}`);
     const document = await lkpsService.getLKPSDocumentById(id);
     
     if (!document) {
-      console.log(`[LKPS Controller] Document NOT FOUND: ${id}`);
       return errorResponse(res, 'Dokumen tidak ditemukan', 404);
     }
     
-    console.log(`[LKPS Controller] Document FOUND: ${id}, content keys: ${document.content ? Object.keys(document.content as object).length : 0}`);
     return successResponse(res, document, 'Berhasil mengambil dokumen LKPS');
   } catch (error: any) {
     console.error('Error getting document:', error);
@@ -329,10 +247,64 @@ export const getLKPSDocumentHandler = async (req: Request, res: Response) => {
 
 /**
  * @swagger
+ * /api/lkps/{id}:
+ *   put:
+ *     summary: Update konten dokumen LKPS
+ *     description: Memperbarui data JSON konten di dalam dokumen LKPS
+ *     tags: [LKPS]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: id
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               content:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: Dokumen berhasil diperbarui
+ *       404:
+ *         description: Dokumen tidak ditemukan
+ *       500:
+ *         description: Gagal memperbarui dokumen
+ */
+export const updateLKPSDocumentHandler = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const { content } = req.body;
+
+    const document = await lkpsService.getLKPSDocumentById(id);
+    if (!document) {
+      return errorResponse(res, 'Dokumen tidak ditemukan', 404);
+    }
+
+    const updatedDocument = await prisma.documentLKPS.update({
+      where: { id },
+      data: { content },
+    });
+
+    return successResponse(res, updatedDocument, 'Data LKPS berhasil diperbarui');
+  } catch (error: any) {
+    console.error('Error updating document:', error);
+    return errorResponse(res, 'Gagal memperbarui data LKPS', 500);
+  }
+};
+
+/**
+ * @swagger
  * /api/lkps/export/{id}:
  *   get:
  *     summary: Mengekspor dokumen LKPS sebagai file Excel
- *     description: Mengambil dokumen LKPS dari database dan mengirimnya sebagai file Excel untuk diunduh. Jika file original masih tersedia, akan dikirim file aslinya. Jika tidak, akan generate ulang dari data yang tersimpan di database
+ *     description: Mengambil dokumen LKPS dari database dan mengirimnya sebagai file Excel untuk diunduh
  *     tags: [LKPS]
  *     security:
  *       - bearerAuth: []
@@ -347,20 +319,10 @@ export const getLKPSDocumentHandler = async (req: Request, res: Response) => {
  *     responses:
  *       200:
  *         description: File Excel LKPS berhasil digenerate dan siap diunduh
- *         content:
- *           application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
- *             schema:
- *               type: string
- *               format: binary
- *         headers:
- *           Content-Disposition:
- *             schema:
- *               type: string
- *               example: 'attachment; filename="LKPS_Informatika.xlsx"'
  *       401:
  *         description: Tidak terautentikasi
  *       404:
- *         description: Dokumen tidak ditemukan atau data dokumen tidak lengkap
+ *         description: Dokumen tidak ditemukan
  *       500:
  *         description: Gagal mengekspor LKPS
  */
@@ -373,7 +335,6 @@ export const exportLKPSHandler = async (req: Request, res: Response) => {
       return errorResponse(res, 'Dokumen tidak ditemukan', 404);
     }
 
-    // Prefer serving the original file if it exists
     if (document.filePath) {
       const fullPath = path.join(process.cwd(), document.filePath);
       if (fs.existsSync(fullPath)) {
@@ -383,7 +344,6 @@ export const exportLKPSHandler = async (req: Request, res: Response) => {
       }
     }
 
-    // Fallback to generating from content if original file is missing
     if (!document.content) {
       return errorResponse(res, 'Data dokumen tidak lengkap', 404);
     }

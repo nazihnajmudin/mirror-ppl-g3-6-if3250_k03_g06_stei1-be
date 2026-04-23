@@ -4,22 +4,6 @@ export interface LKPSParsedData {
   [sheetName: string]: any[][];
 }
 
-interface TableParseConfig {
-  startRow: number;
-  startCol: number;
-  colCount: number;
-}
-
-const PARSE_CONFIGS: Record<string, TableParseConfig> = {
-  'PS': { startRow: 17, startCol: 2, colCount: 7 },
-  'PSPPI': { startRow: 14, startCol: 2, colCount: 6 },
-  '2a1': { startRow: 13, startCol: 2, colCount: 12 },
-  '3a1': { startRow: 10, startCol: 2, colCount: 11 },
-  // Add others as needed, or use a default
-};
-
-const DEFAULT_CONFIG: TableParseConfig = { startRow: 10, startCol: 2, colCount: 10 };
-
 export const parseLKPSExcel = async (buffer: Buffer): Promise<LKPSParsedData> => {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
@@ -40,60 +24,78 @@ export const parseLKPSExcel = async (buffer: Buffer): Promise<LKPSParsedData> =>
       return;
     }
 
-    const config = PARSE_CONFIGS[sheetName] || DEFAULT_CONFIG;
-    const sheetData: any[][] = [];
+    let startRow = 10; 
+    let startCol = 2;
+    let colCount = 10;
+    let foundHeader = false;
     
-    // Iterate through rows starting from startRow
-    let rowNum = config.startRow;
-    while (true) {
-      const row = worksheet.getRow(rowNum);
+    // Scan rows to find the numbering row (1, 2, 3...)
+    for (let r = 1; r <= 30; r++) {
+      const row = worksheet.getRow(r);
+      // Check Col A (1) and Col B (2) for the '1'
+      const valA = row.getCell(1).value;
+      const valB = row.getCell(2).value;
       
-      // Stop if the first few cells are empty (suggesting end of table)
-      const firstCell = row.getCell(config.startCol).value;
-      const secondCell = row.getCell(config.startCol + 1).value;
-      
-      if (!firstCell && !secondCell && rowNum > config.startRow + 5) {
-        break; 
-      }
-      
-      // Also stop if we've reached a very high row number (safety)
-      if (rowNum > 500) break;
-
-      const rowData: any[] = [];
-      let hasData = false;
-      
-      for (let i = 0; i < config.colCount; i++) {
-        const cell = row.getCell(config.startCol + i);
-        let value = cell.value;
+      if (valA === 1 || valB === 1) {
+        foundHeader = true;
+        startRow = r + 1;
+        startCol = (valA === 1) ? 1 : 2;
         
-        // Handle ExcelJS value objects (like dates, formulas)
-        if (value && typeof value === 'object') {
-          if (value instanceof Date) {
-            // Keep as Date, it will be JSON stringified correctly
-          } else if ((value as any).result !== undefined) {
-            value = (value as any).result;
-          } else if ((value as any).richText) {
-            value = (value as any).richText.map((rt: any) => rt.text).join('');
-          }
+        // Count columns
+        let c = startCol;
+        while (true) {
+          const v = row.getCell(c).value;
+          if (v === null || v === undefined || v === '') break;
+          c++;
         }
-        
-        if (value !== null && value !== undefined && value !== '') {
-          hasData = true;
-        }
-        
-        rowData.push(value === null ? '' : value);
-      }
-      
-      if (hasData) {
-        sheetData.push(rowData);
-      } else if (rowNum > config.startRow + 2) {
-        // Stop if we hit an empty row after some initial data
+        colCount = c - startCol;
         break;
       }
-      
-      rowNum++;
     }
-    
+
+    const sheetData: any[][] = [];
+    if (foundHeader) {
+      let rowNum = startRow;
+      let consecutiveEmptyRows = 0;
+      
+      while (true) {
+        const row = worksheet.getRow(rowNum);
+        const rowData: any[] = [];
+        let hasData = false;
+        
+        for (let i = 0; i < colCount; i++) {
+          const cell = row.getCell(startCol + i);
+          let value = cell.value;
+          
+          if (value && typeof value === 'object') {
+            if (value instanceof Date) {
+              // keep date
+            } else if ((value as any).result !== undefined) {
+              value = (value as any).result;
+            } else if ((value as any).richText) {
+              value = (value as any).richText.map((rt: any) => rt.text).join('');
+            } else {
+              value = value.toString();
+            }
+          }
+          
+          if (value !== null && value !== undefined && value !== '') {
+            hasData = true;
+          }
+          rowData.push(value === null || value === undefined ? '' : value);
+        }
+        
+        if (hasData) {
+          sheetData.push(rowData);
+          consecutiveEmptyRows = 0;
+        } else {
+          consecutiveEmptyRows++;
+        }
+        
+        if (consecutiveEmptyRows >= 10 || rowNum > 1000) break;
+        rowNum++;
+      }
+    }
     result[sheetName] = sheetData;
   });
 
