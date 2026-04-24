@@ -1,8 +1,8 @@
-import ExcelJS from 'exceljs';
+const ExcelJS = require('exceljs');
 import { Buffer } from 'buffer';
 
 export interface LKPSParsedData {
-  [sheetName: string]: any[][];
+  [sheetName: string]: any[];
 }
 
 export const parseLKPSExcel = async (buffer: Buffer): Promise<LKPSParsedData> => {
