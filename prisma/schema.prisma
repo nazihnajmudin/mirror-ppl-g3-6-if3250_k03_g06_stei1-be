@@ -18,6 +18,7 @@ model Prodi {
   documentLED   DocumentLED[]
   documentLKPS  DocumentLKPS[]
   assignments   ProdiAssignment[]
+  ledForms      LEDForm[]
   users         User[]
 }
 
@@ -33,6 +34,7 @@ model User {
   updatedAt   DateTime          @updatedAt
   documentLED DocumentLED[]
   assignments ProdiAssignment[]
+  ledForms    LEDForm[]
   prodi       Prodi?            @relation(fields: [prodiId], references: [id])
 }
 
@@ -98,20 +100,20 @@ model DocumentLED {
 }
 
 model LEDForm {
-  id          String          @id @default(uuid())
+  id          String         @id @default(uuid())
   prodiId     String
-  template    String
-  category    Category   
-  periode     String     
-  content     Json?         
-  status      DocumentStatus   @default(DRAFT)
-  CreatedById String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  editor      User?            @relation(fields: [lastSavedBy], references: [id])
-  prodi       Prodi            @relation(fields: [prodiId], references: [id])
+  template    Template
+  periode     String
+  content     Json?
+  status      DocumentStatus @default(DRAFT)
+  createdById String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  prodi       Prodi          @relation(fields: [prodiId], references: [id])
+  createdBy   User?          @relation(fields: [createdById], references: [id])
 
-  @@unique([prodiId, periode, category])
+  @@unique([prodiId])
+  @@map("led_forms")
 }
 
 enum Role {
@@ -126,7 +128,7 @@ enum DocumentStatus {
   FINAL
 }
 
-enum Category {
+enum Template {
   INFOKOM
   LAM_TEKNIK
 }
