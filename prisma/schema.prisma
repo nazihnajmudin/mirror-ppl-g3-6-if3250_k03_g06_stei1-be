@@ -33,6 +33,7 @@ model User {
   updatedAt   DateTime          @updatedAt
   documentLED DocumentLED[]
   assignments ProdiAssignment[]
+  templates   DocumentTemplate[]
   prodi       Prodi?            @relation(fields: [prodiId], references: [id])
 }
 
@@ -97,6 +98,22 @@ model DocumentLED {
   @@unique([prodiId, periode, versi])
 }
 
+model DocumentTemplate {
+  id          String       @id @default(uuid())
+  name        String       // Contoh: "Template LKPS LAM Teknik 2026"
+  type        TemplateType // LKPS atau LED
+  category    LamCategory  // INFOKOM atau TEKNIK
+  content     String       // Path file fisik dari Storage Provider
+  
+  uploadedById String
+  uploader     User        @relation(fields: [uploadedById], references: [id])
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([type, category]) 
+}
+
 enum Role {
   SUPER_ADMIN
   PIMPINAN
@@ -107,4 +124,14 @@ enum Role {
 enum DocumentStatus {
   DRAFT
   FINAL
+}
+
+enum LamCategory {
+  INFOKOM
+  TEKNIK
+}
+
+enum TemplateType {
+  LKPS
+  LED
 }
