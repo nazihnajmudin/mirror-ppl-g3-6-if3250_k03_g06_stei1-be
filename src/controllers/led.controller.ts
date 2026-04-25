@@ -295,7 +295,8 @@ export const getLEDFormHistoryHandler = async (req: Request, res: Response): Pro
             return;
         }
 
-        const history = await ledService.getLEDFormHistory(prodiId, periode);
+        const template = typeof req.query.template === 'string' ? req.query.template : undefined;
+        const history = await ledService.getLEDFormHistory(prodiId, periode, template);
         successResponse(res, history, 'Riwayat LED form berhasil diambil');
     } catch (err: any) {
         errorResponse(res, err.message, 500);
@@ -337,7 +338,8 @@ export const exportLEDFormHandler = async (req: Request, res: Response): Promise
             return;
         }
 
-        const { buffer, filename } = await ledService.exportLEDForm(id, periode);
+        const template = typeof req.query.template === 'string' ? req.query.template : undefined;
+        const { buffer, filename } = await ledService.exportLEDForm(id, periode, template);
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

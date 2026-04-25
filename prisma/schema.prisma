@@ -18,8 +18,8 @@ model Prodi {
   documentLED   DocumentLED[]
   documentLKPS  DocumentLKPS[]
   assignments   ProdiAssignment[]
-  ledForms      LEDForm[]
   users         User[]
+  ledForms      LedForm[]
 }
 
 model User {
@@ -34,7 +34,7 @@ model User {
   updatedAt   DateTime          @updatedAt
   documentLED DocumentLED[]
   assignments ProdiAssignment[]
-  ledForms    LEDForm[]
+  ledForms    LedForm[]
   prodi       Prodi?            @relation(fields: [prodiId], references: [id])
 }
 
@@ -42,8 +42,8 @@ model ProdiAssignment {
   id        String   @id @default(uuid())
   userId    String
   prodiId   String
-  kriteria  String[] @default([])
   createdAt DateTime @default(now())
+  kriteria  String[] @default([])
   prodi     Prodi    @relation(fields: [prodiId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
 
@@ -99,21 +99,21 @@ model DocumentLED {
   @@unique([prodiId, periode, versi])
 }
 
-model LEDForm {
-  id          String         @id @default(uuid())
+model LedForm {
+  id          String   @id @default(uuid())
   prodiId     String
   template    Template
   periode     String
-  content     Json?
-  status      DocumentStatus @default(DRAFT)
-  createdById String?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  prodi       Prodi          @relation(fields: [prodiId], references: [id])
-  createdBy   User?          @relation(fields: [createdById], references: [id])
+  content     Json
+  createdById String
+  createdAt   DateTime @default(now())
+  prodi       Prodi    @relation(fields: [prodiId], references: [id])
+  createdBy   User     @relation(fields: [createdById], references: [id])
+}
 
-  @@unique([prodiId])
-  @@map("led_forms")
+enum Template {
+  INFOKOM
+  LAM_TEKNIK
 }
 
 enum Role {
@@ -126,9 +126,4 @@ enum Role {
 enum DocumentStatus {
   DRAFT
   FINAL
-}
-
-enum Template {
-  INFOKOM
-  LAM_TEKNIK
 }

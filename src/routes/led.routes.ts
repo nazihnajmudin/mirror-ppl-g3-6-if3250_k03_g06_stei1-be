@@ -31,9 +31,15 @@ router.post(
     importLEDHandler
 );
 
+// Export LED Form
+router.get(
+    '/export/form/:id',
+    exportLEDFormHandler
+);
+
 // Export Specific LED
 router.get(
-    '/export/document/:id', 
+    '/export/document/:id',
     exportLEDByIdHandler
 );
 
@@ -85,11 +91,6 @@ router.get(
 router.get(
     '/form/:versionId',
     getLEDFormVersionHandler
-);
-
-router.get(
-    '/export/form/:id',
-    exportLEDFormHandler
 );
 
 export default router;

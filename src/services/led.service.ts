@@ -169,9 +169,11 @@ export const createLEDFormVersion = async (data: CreateLEDFormInput) => {
   });
 };
 
-export const getLEDFormHistory = async (prodiId: string, periode: string) => {
+export const getLEDFormHistory = async (prodiId: string, periode: string, template?: string) => {
+  const where: any = { prodiId, periode };
+  if (template) where.template = template;
   return (prisma as any).ledForm.findMany({
-    where: { prodiId, periode },
+    where,
     orderBy: { createdAt: 'desc' },
     include: { createdBy: { select: { name: true, email: true } } },
   });
@@ -187,9 +189,10 @@ export const getLEDFormVersionById = async (versionId: string) => {
   });
 };
 
-export const getLatestLEDFormVersion = async (prodiId: string, periode?: string) => {
+export const getLatestLEDFormVersion = async (prodiId: string, periode?: string, template?: string) => {
   const where: any = { prodiId };
   if (periode) where.periode = periode;
+  if (template) where.template = template;
 
   return (prisma as any).ledForm.findFirst({
     where,
@@ -201,7 +204,7 @@ export const getLatestLEDFormVersion = async (prodiId: string, periode?: string)
   });
 };
 
-export const exportLEDForm = async (rawId: string, periode?: string): Promise<ExportLEDFormResult> => {
+export const exportLEDForm = async (rawId: string, periode?: string, template?: string): Promise<ExportLEDFormResult> => {
   let version = await (prisma as any).ledForm.findUnique({
     where: { id: rawId },
     include: {
@@ -211,7 +214,7 @@ export const exportLEDForm = async (rawId: string, periode?: string): Promise<Ex
   });
 
   if (!version) {
-    const latestByProdi = await getLatestLEDFormVersion(rawId, periode);
+    const latestByProdi = await getLatestLEDFormVersion(rawId, periode, template);
     if (!latestByProdi) {
       throw new Error(`Dokumen LED form belum tersedia untuk prodi atau versi yang diminta.`);
     }
@@ -230,9 +233,14 @@ export const exportLEDForm = async (rawId: string, periode?: string): Promise<Ex
 
   const versionNumber = allVersionsForProdi.findIndex((v: any) => v.id === version.id) + 1 || 1;
 
+  const rawContent = version.content;
+  const parsedContent: Record<string, string> = typeof rawContent === 'string'
+    ? JSON.parse(rawContent)
+    : ((rawContent as Record<string, string>) ?? {});
+
   const buffer = await generateLEDFormDocxBuffer({
     template: version.template,
-    content: (version.content as Record<string, any>) || {},
+    content: parsedContent,
     prodiName: version.prodi.fullname,
     periode: version.periode,
   });
