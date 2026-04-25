@@ -14,7 +14,8 @@ export class LocalStorageProvider implements IStorageProvider {
 
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
         const ext = path.extname(file.originalname);
-        const filename = `LED-${uniqueSuffix}${ext}`;
+        const prefix = folder.toUpperCase();
+        const filename = `${prefix}-${uniqueSuffix}${ext}`;
         const fullPath = path.join(targetFolder, filename);
         await fs.promises.writeFile(fullPath, file.buffer);
 
@@ -23,5 +24,14 @@ export class LocalStorageProvider implements IStorageProvider {
 
     getFilePath(fileName: string, folder: string): string {
         return path.join(this.basePath, folder, fileName);
+    }
+
+    async delete(fileName: string, folder: string): Promise<boolean> {
+        const filePath = path.join(this.basePath, folder, fileName);
+        if (fs.existsSync(filePath)) {
+            await fs.promises.unlink(filePath);
+            return true;
+        }
+        return false;
     }
 }
