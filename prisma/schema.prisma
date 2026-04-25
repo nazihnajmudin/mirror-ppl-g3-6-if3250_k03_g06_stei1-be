@@ -19,6 +19,7 @@ model Prodi {
   documentLKPS  DocumentLKPS[]
   assignments   ProdiAssignment[]
   users         User[]
+  ledForms      LedForm[]
 }
 
 model User {
@@ -34,6 +35,7 @@ model User {
   documentLED DocumentLED[]
   assignments ProdiAssignment[]
   templates   DocumentTemplate[]
+  ledForms    LedForm[]
   prodi       Prodi?            @relation(fields: [prodiId], references: [id])
 }
 
@@ -41,8 +43,8 @@ model ProdiAssignment {
   id        String   @id @default(uuid())
   userId    String
   prodiId   String
-  kriteria  String[] @default([])
   createdAt DateTime @default(now())
+  kriteria  String[] @default([])
   prodi     Prodi    @relation(fields: [prodiId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
 
@@ -158,6 +160,23 @@ model DocumentTemplate {
   updatedAt   DateTime     @updatedAt
 
   @@unique([type, category]) 
+}
+
+model LedForm {
+  id          String   @id @default(uuid())
+  prodiId     String
+  template    Template
+  periode     String
+  content     Json
+  createdById String
+  createdAt   DateTime @default(now())
+  prodi       Prodi    @relation(fields: [prodiId], references: [id])
+  createdBy   User     @relation(fields: [createdById], references: [id])
+}
+
+enum Template {
+  INFOKOM
+  LAM_TEKNIK
 }
 
 enum Role {

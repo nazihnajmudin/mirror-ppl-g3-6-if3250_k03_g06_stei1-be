@@ -25,11 +25,17 @@ export interface DashboardData {
     };
   };
   simulationScore: number;
+  lamTemplate: 'LAM_TEKNIK' | 'INFOKOM';
   criteria: Array<{
     id: string;
     code: string;
     name: string;
     progress: number;
+    subsections: Array<{
+      id: string;
+      name: string;
+      progress: number;
+    }>;
   }>;
   criticalIndicators: Array<{
     id: string;
@@ -78,7 +84,7 @@ export const getProdiForUser = async (userId: string) => {
     throw new Error('Pengguna tidak ditemukan');
   }
 
-  // Admin/Pimpinan see everything
+   // Admin/Pimpinan see everything
   if (user.role === Role.SUPER_ADMIN || user.role === Role.PIMPINAN) {
     return prisma.prodi.findMany({
       orderBy: { fullname: 'asc' },
@@ -202,16 +208,140 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
 
   const simulationScore = 0;
 
-  const criteria = Array.from({ length: 9 }, (_, i) => ({
-    id: `k${i + 1}`,
-    code: `K${i + 1}`,
-    name: `Kriteria ${i + 1}`,
-    progress: 100,
-  }));
+  const latestLEDForm = await (prisma as any).ledForm.findFirst({
+    where: { prodiId },
+    orderBy: { createdAt: 'desc' },
+    select: { template: true, content: true },
+  });
+  const isInfokom = latestLEDForm?.template === 'INFOKOM';
+
+  const recentFormsPromise = (prisma as any).ledForm.findMany({
+    where: { prodiId },
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+    select: { id: true, createdAt: true, template: true, createdBy: { select: { name: true } } },
+  });
+  const recentUploadsPromise = (prisma as any).documentLED.findMany({
+    where: { prodiId },
+    orderBy: { updatedAt: 'desc' },
+    take: 5,
+    select: { id: true, updatedAt: true, name: true, pengunggah: { select: { name: true } } },
+  });
+
+  const [recentForms, recentUploads] = await Promise.all([recentFormsPromise, recentUploadsPromise]);
+
+  const recentActivitiesUnsorted: Array<{ id: string; user: string; action: string; timestamp: Date }> = [];
+  
+  recentForms.forEach((f: any) => {
+    recentActivitiesUnsorted.push({
+      id: f.id,
+      user: f.createdBy?.name || 'Sistem',
+      action: `Menyimpan draft formulir LED (${f.template === 'INFOKOM' ? 'Infokom' : 'Teknik'})`,
+      timestamp: f.createdAt,
+    });
+  });
+
+  recentUploads.forEach((u: any) => {
+    recentActivitiesUnsorted.push({
+      id: u.id,
+      user: u.pengunggah?.name || 'Sistem',
+      action: `Mengunggah dokumen final LED (${u.name || 'Dokumen LED'})`,
+      timestamp: u.updatedAt,
+    });
+  });
+
+  const recentActivities = recentActivitiesUnsorted
+    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+    .slice(0, 4)
+    .map(a => ({ ...a, timestamp: a.timestamp.toISOString() }));
+
+  const rawContent = latestLEDForm?.content ?? null;
+  const formContent: Record<string, string> = rawContent
+    ? (typeof rawContent === 'string' ? JSON.parse(rawContent) : rawContent)
+    : {};
+
+  const isFilledSection = (html: string | undefined): boolean => {
+    if (!html) return false;
+    const plainText = html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    if (plainText.length < 300) return false;
+    const lower = plainText.toLowerCase();
+    if (lower.includes('diisi oleh pengusul')) return false;
+    if (lower.includes('penjelasan disampaikan oleh pengusul')) return false;
+    if (lower.includes('bagian ini berisi')) return false;
+    if (lower.includes('bagian ini menjelaskan')) return false;
+    return true;
+  };
+
+  const calcProgress = (keys: string[]): number => {
+    if (keys.length === 0) return 0;
+    const filled = keys.filter((k) => isFilledSection(formContent[k])).length;
+    return Math.round((filled / keys.length) * 100);
+  };
+
+  const LAM_TEKNIK_CRITERIA = [
+    { id: 'c1', code: 'C.1', name: 'Visi, Misi, Tujuan, dan Strategi',
+      subs: ['latar_belakang', 'kebijakan', 'iku', 'analisis', 'strategi'],
+      subNames: ['Latar Belakang', 'Kebijakan', 'Indikator Kinerja Utama', 'Analisis Faktor', 'Strategi Perbaikan (SWOT)'] },
+    { id: 'c2', code: 'C.2', name: 'Tata Pamong, Tata Kelola, dan Kerja Sama',
+      subs: ['latar_belakang', 'kebijakan', 'iku', 'analisis', 'strategi'],
+      subNames: ['Latar Belakang', 'Kebijakan', 'Indikator Kinerja Utama', 'Analisis Faktor', 'Strategi Perbaikan (SWOT)'] },
+    { id: 'c3', code: 'C.3', name: 'Relevansi Pendidikan, Penelitian, dan PkM',
+      subs: ['latar_belakang', 'kebijakan', 'iku', 'analisis', 'strategi'],
+      subNames: ['Latar Belakang', 'Kebijakan', 'Indikator Kinerja Utama', 'Analisis Faktor', 'Strategi Perbaikan (SWOT)'] },
+    { id: 'c4', code: 'C.4', name: 'Sumber Daya Manusia',
+      subs: ['latar_belakang', 'kebijakan', 'iku', 'analisis', 'strategi'],
+      subNames: ['Latar Belakang', 'Kebijakan', 'Indikator Kinerja Utama', 'Analisis Faktor', 'Strategi Perbaikan (SWOT)'] },
+    { id: 'c5', code: 'C.5', name: 'Sarana, Prasarana, dan K3L',
+      subs: ['latar_belakang', 'kebijakan', 'iku', 'analisis', 'strategi'],
+      subNames: ['Latar Belakang', 'Kebijakan', 'Indikator Kinerja Utama', 'Analisis Faktor', 'Strategi Perbaikan (SWOT)'] },
+    { id: 'c6', code: 'C.6', name: 'Mahasiswa dan Luaran Mahasiswa',
+      subs: ['latar_belakang', 'kebijakan', 'iku', 'analisis', 'strategi'],
+      subNames: ['Latar Belakang', 'Kebijakan', 'Indikator Kinerja Utama', 'Analisis Faktor', 'Strategi Perbaikan (SWOT)'] },
+    { id: 'c7', code: 'C.7', name: 'Sistem Penjaminan Mutu',
+      subs: ['latar_belakang', 'kebijakan', 'iku', 'analisis', 'strategi'],
+      subNames: ['Latar Belakang', 'Kebijakan', 'Indikator Kinerja Utama', 'Analisis Faktor', 'Strategi Perbaikan (SWOT)'] },
+  ];
+
+  const LAM_INFOKOM_CRITERIA = [
+    { id: 'c1', code: 'C.1', name: 'Budaya Mutu',
+      subs: ['penetapan', 'pelaksanaan', 'evaluasi', 'pengendalian', 'peningkatan'],
+      subNames: ['Penetapan', 'Pelaksanaan', 'Evaluasi', 'Pengendalian', 'Peningkatan'] },
+    { id: 'c2', code: 'C.2', name: 'Relevansi Pendidikan',
+      subs: ['penetapan', 'pelaksanaan', 'evaluasi', 'pengendalian', 'peningkatan'],
+      subNames: ['Penetapan', 'Pelaksanaan', 'Evaluasi', 'Pengendalian', 'Peningkatan'] },
+    { id: 'c3', code: 'C.3', name: 'Relevansi Penelitian',
+      subs: ['penetapan', 'pelaksanaan', 'evaluasi', 'pengendalian', 'peningkatan'],
+      subNames: ['Penetapan', 'Pelaksanaan', 'Evaluasi', 'Pengendalian', 'Peningkatan'] },
+    { id: 'c4', code: 'C.4', name: 'Relevansi Pengabdian kepada Masyarakat',
+      subs: ['penetapan', 'pelaksanaan', 'evaluasi', 'pengendalian', 'peningkatan'],
+      subNames: ['Penetapan', 'Pelaksanaan', 'Evaluasi', 'Pengendalian', 'Peningkatan'] },
+    { id: 'c5', code: 'C.5', name: 'Akuntabilitas',
+      subs: ['penetapan', 'pelaksanaan', 'evaluasi', 'pengendalian', 'peningkatan'],
+      subNames: ['Penetapan', 'Pelaksanaan', 'Evaluasi', 'Pengendalian', 'Peningkatan'] },
+    { id: 'c6', code: 'C.6', name: 'Diferensiasi Misi',
+      subs: ['penetapan', 'pelaksanaan', 'evaluasi', 'pengendalian', 'peningkatan'],
+      subNames: ['Penetapan', 'Pelaksanaan', 'Evaluasi', 'Pengendalian', 'Peningkatan'] },
+  ];
+
+  const criteriaList = isInfokom ? LAM_INFOKOM_CRITERIA : LAM_TEKNIK_CRITERIA;
+
+  const criteria = criteriaList.map((c) => {
+    const subSectionProgress = c.subs.map((sub, idx) => ({
+      id: sub,
+      name: c.subNames[idx],
+      progress: isFilledSection(formContent[`${c.id}_${sub}`]) ? 100 : 0,
+    }));
+    const filledCount = subSectionProgress.filter((s) => s.progress === 100).length;
+    return {
+      id: c.id,
+      code: c.code,
+      name: c.name,
+      progress: Math.round((filledCount / c.subs.length) * 100),
+      subsections: subSectionProgress,
+    };
+  });
 
   const criticalIndicators: Array<{ id: string; name: string; status: string }> = [];
-
-  const recentActivities: Array<{ id: string; user: string; action: string; timestamp: string }> = [];
 
   return {
     prodi: {
@@ -227,6 +357,7 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
     },
     documents,
     simulationScore,
+    lamTemplate: isInfokom ? 'INFOKOM' : 'LAM_TEKNIK',
     criteria,
     criticalIndicators,
     recentActivities,

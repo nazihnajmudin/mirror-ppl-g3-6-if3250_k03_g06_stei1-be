@@ -1,12 +1,26 @@
 import prisma from '../config/database.config';
 import { storageProvider } from '../utils/storage';
 import { DocumentStatus } from '@prisma/client';
+import { generateLEDFormDocxBuffer, buildLEDFormFilename } from '../exporters/ledForm.exporter';
 
 interface ImportLEDInput {
     prodiId: string;
     pengunggahId: string;
     periode: string;
     file: Express.Multer.File;
+}
+
+interface CreateLEDFormInput {
+  prodiId: string;
+  template: 'INFOKOM' | 'LAM_TEKNIK';
+  periode: string;
+  content: Record<string, any>;
+  createdById: string;
+}
+
+interface ExportLEDFormResult {
+  buffer: Buffer;
+  filename: string;
 }
 
 /**
@@ -131,6 +145,108 @@ export const exportLEDById = async (id: string) => {
     const filePath = storageProvider.getFilePath(doc.content, 'led');
 
     return { dokumen: doc, filePath };
+};
+
+export const createLEDFormVersion = async (data: CreateLEDFormInput) => {
+  const prodi = await prisma.prodi.findUnique({ where: { id: data.prodiId } });
+  if (!prodi) throw new Error('Program studi tidak ditemukan');
+
+  const user = await prisma.user.findUnique({ where: { id: data.createdById } });
+  if (!user) throw new Error('Pengguna tidak ditemukan');
+
+  return (prisma as any).ledForm.create({
+    data: {
+      prodiId: data.prodiId,
+      template: data.template,
+      periode: data.periode,
+      content: data.content,
+      createdById: data.createdById,
+    },
+    include: {
+      prodi: { select: { fullname: true } },
+      createdBy: { select: { name: true, email: true } },
+    },
+  });
+};
+
+export const getLEDFormHistory = async (prodiId: string, periode: string, template?: string) => {
+  const where: any = { prodiId, periode };
+  if (template) where.template = template;
+  return (prisma as any).ledForm.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    include: { createdBy: { select: { name: true, email: true } } },
+  });
+};
+
+export const getLEDFormVersionById = async (versionId: string) => {
+  return (prisma as any).ledForm.findUnique({
+    where: { id: versionId },
+    include: {
+      prodi: { select: { fullname: true } },
+      createdBy: { select: { name: true, email: true } },
+    },
+  });
+};
+
+export const getLatestLEDFormVersion = async (prodiId: string, periode?: string, template?: string) => {
+  const where: any = { prodiId };
+  if (periode) where.periode = periode;
+  if (template) where.template = template;
+
+  return (prisma as any).ledForm.findFirst({
+    where,
+    orderBy: { createdAt: 'desc' },
+    include: {
+      prodi: { select: { fullname: true } },
+      createdBy: { select: { name: true, email: true } },
+    },
+  });
+};
+
+export const exportLEDForm = async (rawId: string, periode?: string, template?: string): Promise<ExportLEDFormResult> => {
+  let version = await (prisma as any).ledForm.findUnique({
+    where: { id: rawId },
+    include: {
+      prodi: { select: { fullname: true } },
+      createdBy: { select: { name: true, email: true } },
+    },
+  });
+
+  if (!version) {
+    const latestByProdi = await getLatestLEDFormVersion(rawId, periode, template);
+    if (!latestByProdi) {
+      throw new Error(`Dokumen LED form belum tersedia untuk prodi atau versi yang diminta.`);
+    }
+    version = latestByProdi;
+  }
+
+  // Hitung version number berdasarkan posisi dalam daftar urut waktu
+  const allVersionsForProdi = await (prisma as any).ledForm.findMany({
+    where: {
+      prodiId: version.prodiId,
+      periode: version.periode,
+    },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true },
+  });
+
+  const versionNumber = allVersionsForProdi.findIndex((v: any) => v.id === version.id) + 1 || 1;
+
+  const rawContent = version.content;
+  const parsedContent: Record<string, string> = typeof rawContent === 'string'
+    ? JSON.parse(rawContent)
+    : ((rawContent as Record<string, string>) ?? {});
+
+  const buffer = await generateLEDFormDocxBuffer({
+    template: version.template,
+    content: parsedContent,
+    prodiName: version.prodi.fullname,
+    periode: version.periode,
+  });
+
+  const filename = buildLEDFormFilename(version.prodi.fullname, versionNumber, version.periode);
+  return { buffer, filename };
 };
 
 /**
