@@ -123,17 +123,13 @@ model DokumenEviden {
   prodiId     String
   judul       String
   deskripsi   String?  @db.Text
-  indikator   String[] @default([]) // Array Kriteria (misal: ["K1", "K2"])
-  startDate   DateTime?
-  endDate     DateTime?
+  indikator   String[] @default([]) 
+  periode     String?
   
-  // Audit Trail
   uploaderId  String
-  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relasi
   prodi       Prodi    @relation(fields: [prodiId], references: [id])
   uploader    User     @relation(fields: [uploaderId], references: [id])
   files       EvidenFile[]

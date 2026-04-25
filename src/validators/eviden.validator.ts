@@ -5,8 +5,7 @@ export const evidenSchema = z.object({
     judul: z.string().min(1, 'Judul wajib diisi'),
     deskripsi: z.string().optional(),
     indikator: z.string().optional(),       // Akan diparsing dari JSON Stringified Array di controller
-    startDate: z.string().optional(),
-    endDate: z.string().optional(),
+    periode: z.string().optional(),
     deletedFileIds: z.string().optional(),  // Array ID file lama yang dihapus saat Edit (JSON Stringified)
 });
 

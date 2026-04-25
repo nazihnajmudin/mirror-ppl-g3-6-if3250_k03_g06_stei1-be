@@ -350,6 +350,7 @@ async function main() {
     }
   }
 
+  
   // ==========================================
   // SEEDING DUMMY: DOKUMEN EVIDEN
   // ==========================================
@@ -364,9 +365,8 @@ async function main() {
         prodiId: prodiIfId,
         judul: 'Dokumentasi Kegiatan Hackathon 2025',
         deskripsi: '<p>Ini adalah bukti dokumentasi kegiatan perlombaan mahasiswa.</p>',
-        indikator: ['K3', 'K9'],
-        startDate: new Date('2024-01-01'),
-        endDate: new Date('2029-12-31'),
+        indikator: ['C3', 'C5'],
+        periode: '2025',
         uploaderId: kaprodiIf.id,
         files: {
           create: [
@@ -397,9 +397,8 @@ async function main() {
         prodiId: prodiIfId,
         judul: 'Daftar Hadir Dosen 2024',
         deskripsi: '<p>Rekap kehadiran dan RPS.</p>',
-        indikator: ['K4', 'K6'],
-        startDate: new Date('2024-01-01'),
-        endDate: new Date('2029-12-31'),
+        indikator: ['C4', 'C6'],
+        periode: '2024',
         uploaderId: kaprodiIf.id,
         files: {
           create: [

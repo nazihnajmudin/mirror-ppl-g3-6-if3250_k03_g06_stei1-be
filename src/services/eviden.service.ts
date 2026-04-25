@@ -21,8 +21,7 @@ export const createEviden = async (data: any, files: Express.Multer.File[], user
             judul: data.judul,
             deskripsi: data.deskripsi,
             indikator: data.indikator, // Array of strings
-            startDate: data.startDate ? new Date(data.startDate) : null,
-            endDate: data.endDate ? new Date(data.endDate) : null,
+            periode: data.periode,
             uploaderId: userId,
             files: {
                 create: fileRecords
@@ -96,8 +95,7 @@ export const updateEviden = async (id: string, data: any, newFiles: Express.Mult
             judul: data.judul,
             deskripsi: data.deskripsi,
             indikator: data.indikator,
-            startDate: data.startDate ? new Date(data.startDate) : null,
-            endDate: data.endDate ? new Date(data.endDate) : null,
+            periode: data.periode,
             ...(newFileRecords.length > 0 && {
                 files: {
                     create: newFileRecords
