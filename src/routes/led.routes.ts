@@ -1,9 +1,21 @@
 import { Router } from 'express';
-import { importLEDHandler, exportLEDHandler, getLEDHistoryHandler, getAvailablePeriodsHandler, exportLEDByIdHandler, softDeleteDocumentHandler, softDeleteAllDraftsHandler } from '../controllers/led.controller';
+import {
+  importLEDHandler,
+  exportLEDHandler,
+  getLEDHistoryHandler,
+  getAvailablePeriodsHandler,
+  exportLEDByIdHandler,
+  softDeleteDocumentHandler,
+  softDeleteAllDraftsHandler,
+  createLEDFormHandler,
+  getLEDFormHistoryHandler,
+  getLEDFormVersionHandler,
+  exportLEDFormHandler,
+} from '../controllers/led.controller';
 import { authenticate, requireRole } from '../middlewares/auth.middleware';
 import { uploadLEDMiddleware } from '../middlewares/upload.middleware';
 import { validate } from '../middlewares/validate.middleware';
-import { importLEDSchema } from '../validators/led.validator';
+import { importLEDSchema, createLEDFormSchema } from '../validators/led.validator';
 import { Role } from '@prisma/client';
 
 const router = Router();
@@ -19,9 +31,15 @@ router.post(
     importLEDHandler
 );
 
+// Export LED Form
+router.get(
+    '/export/form/:id',
+    exportLEDFormHandler
+);
+
 // Export Specific LED
 router.get(
-    '/export/document/:id', 
+    '/export/document/:id',
     exportLEDByIdHandler
 );
 
@@ -55,6 +73,24 @@ router.delete(
     '/periode/:prodiId/:periode', 
     requireRole(Role.SUPER_ADMIN), 
     softDeleteAllDraftsHandler
+);
+
+
+router.post(
+    '/form/:prodiId',
+    requireRole(Role.KAPRODI, Role.TIM_PRODI),
+    validate(createLEDFormSchema),
+    createLEDFormHandler
+);
+
+router.get(
+    '/form/history/:prodiId/:periode',
+    getLEDFormHistoryHandler
+);
+
+router.get(
+    '/form/:versionId',
+    getLEDFormVersionHandler
 );
 
 export default router;
