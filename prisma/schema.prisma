@@ -19,6 +19,7 @@ model Prodi {
   documentLKPS  DocumentLKPS[]
   assignments   ProdiAssignment[]
   users         User[]
+  dokumenEviden DokumenEviden[]
 }
 
 model User {
@@ -34,6 +35,7 @@ model User {
   documentLED DocumentLED[]
   assignments ProdiAssignment[]
   templates   DocumentTemplate[]
+  dokumenEviden DokumenEviden[]
   prodi       Prodi?            @relation(fields: [prodiId], references: [id])
 }
 
@@ -112,6 +114,41 @@ model DocumentTemplate {
   updatedAt   DateTime     @updatedAt
 
   @@unique([type, category]) 
+}
+
+model DokumenEviden {
+  id          String   @id @default(uuid())
+  prodiId     String
+  judul       String
+  deskripsi   String?  @db.Text
+  indikator   String[] @default([]) // Array Kriteria (misal: ["K1", "K2"])
+  startDate   DateTime?
+  endDate     DateTime?
+  
+  // Audit Trail
+  uploaderId  String
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relasi
+  prodi       Prodi    @relation(fields: [prodiId], references: [id])
+  uploader    User     @relation(fields: [uploaderId], references: [id])
+  files       EvidenFile[]
+}
+
+model EvidenFile {
+  id               String         @id @default(uuid())
+  evidenId         String
+  originalFilename String
+  savedFilename    String         // Nama file fisik di storage
+  mimeType         String         // Untuk icon di frontend (misal: application/pdf)
+  size             Int            // Dalam bytes
+  
+  createdAt        DateTime       @default(now())
+
+  // Relasi
+  eviden           DokumenEviden  @relation(fields: [evidenId], references: [id], onDelete: Cascade) // Jika Eviden dihapus, file juga terhapus
 }
 
 enum Role {

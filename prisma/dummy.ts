@@ -349,6 +349,72 @@ async function main() {
       });
     }
   }
+
+  // ==========================================
+  // SEEDING DUMMY: DOKUMEN EVIDEN
+  // ==========================================
+  console.log('Seeding Dokumen Eviden dummy data...');
+  
+  if (kaprodiIf && prodiIfId) {
+    await prisma.dokumenEviden.upsert({
+      where: { id: 'eviden-dummy-1' },
+      update: {},
+      create: {
+        id: 'eviden-dummy-1',
+        prodiId: prodiIfId,
+        judul: 'Dokumentasi Kegiatan Hackathon 2025',
+        deskripsi: '<p>Ini adalah bukti dokumentasi kegiatan perlombaan mahasiswa.</p>',
+        indikator: ['K3', 'K9'],
+        startDate: new Date('2024-01-01'),
+        endDate: new Date('2029-12-31'),
+        uploaderId: kaprodiIf.id,
+        files: {
+          create: [
+            {
+              id: 'file-dummy-1',
+              originalFilename: 'Video_Dokumentasi.mp4',
+              savedFilename: 'dummy-1.mp4',
+              mimeType: 'video/mp4',
+              size: 1024 * 1024 * 45, // 45 MB
+            },
+            {
+              id: 'file-dummy-2',
+              originalFilename: 'Laporan_Kegiatan.pdf',
+              savedFilename: 'dummy-2.pdf',
+              mimeType: 'application/pdf',
+              size: 1024 * 1024 * 2.5, // 2.5 MB
+            }
+          ]
+        }
+      }
+    });
+
+    await prisma.dokumenEviden.upsert({
+      where: { id: 'eviden-dummy-2' },
+      update: {},
+      create: {
+        id: 'eviden-dummy-2',
+        prodiId: prodiIfId,
+        judul: 'Daftar Hadir Dosen 2024',
+        deskripsi: '<p>Rekap kehadiran dan RPS.</p>',
+        indikator: ['K4', 'K6'],
+        startDate: new Date('2024-01-01'),
+        endDate: new Date('2029-12-31'),
+        uploaderId: kaprodiIf.id,
+        files: {
+          create: [
+            {
+              id: 'file-dummy-3',
+              originalFilename: 'Rekap_Hadir_2024.xlsx',
+              savedFilename: 'dummy-3.xlsx',
+              mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              size: 1024 * 850, // 850 KB
+            }
+          ]
+        }
+      }
+    });
+  }
 }
 
 main()

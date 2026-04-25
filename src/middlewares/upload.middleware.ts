@@ -67,3 +67,20 @@ export const uploadTemplateMiddleware = multer({
     fileFilter: templateFileFilter,
     limits: { fileSize: maxFileSizeMB * 1024 * 1024 }, 
 });
+
+// Filter Khusus Eviden (Menerima PDF, Office, Gambar, Audio, Video, ZIP)
+const evidenFileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+    if (file.mimetype === 'application/x-msdownload' || file.mimetype.includes('exe')) {
+        cb(new Error('Format file berbahaya tidak diizinkan.'));
+    } else {
+        cb(null, true);
+    }
+};
+
+const evidenMaxFileSizeMB = 50; 
+
+export const uploadEvidenMiddleware = multer({
+    storage: multer.memoryStorage(),
+    fileFilter: evidenFileFilter,
+    limits: { fileSize: evidenMaxFileSizeMB * 1024 * 1024 }, 
+});
