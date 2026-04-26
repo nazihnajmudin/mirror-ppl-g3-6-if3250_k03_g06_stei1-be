@@ -3,6 +3,7 @@ import app from '../../app';
 import prisma from '../../config/database.config';
 import { Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { de } from 'zod/locales';
 
 describe('LED API - Integration Test (Success & Failure Scenarios)', () => {
   let authToken: string;
@@ -41,6 +42,10 @@ describe('LED API - Integration Test (Success & Failure Scenarios)', () => {
 
   afterAll(async () => {
     await prisma.documentLED.deleteMany({ where: { prodiId: dummyProdiId } });
+    try {
+      await (prisma as any).ledForm.deleteMany({ where: { prodiId: dummyProdiId } });
+    } catch (error) {
+    }
     await prisma.$disconnect();
   });
 
@@ -102,6 +107,58 @@ describe('LED API - Integration Test (Success & Failure Scenarios)', () => {
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.status).toBe(404);
+    });
+  });
+
+  describe('LED Form API', () => {
+    const formPeriode = periodeTest;
+    const formTemplate = 'INFOKOM';
+    const nonExistentId = '00000000-0000-0000-0000-000000000000';
+
+    describe('POST /api/led/form/:prodiId', () => {
+      it('harus gagal jika mencoba mengisi form untuk prodi lain', async () => {
+        const wrongProdiId = "different-prodi-uuid";
+        const res = await request(app)
+          .post(`/api/led/form/${wrongProdiId}`)
+          .set('Authorization', `Bearer ${authToken}`)
+          .send({ template: formTemplate, periode: formPeriode, content: "{}" });
+
+        expect(res.status).toBe(403);
+        expect(res.body.message).toMatch(/Akses ditolak/);
+      });
+    });
+
+    describe('GET /api/led/form/history/:prodiId/:periode', () => {
+      it('harus gagal jika user mengakses riwayat prodi yang bukan miliknya', async () => {
+        const strangerProdiId = "stranger-danger-uuid";
+        const res = await request(app)
+          .get(`/api/led/form/history/${strangerProdiId}/${formPeriode}`)
+          .set('Authorization', `Bearer ${authToken}`);
+
+        expect(res.status).toBe(403);
+        expect(res.body.message).toBe('Akses ditolak');
+      });
+    });
+
+    describe('GET /api/led/form/:versionId', () => {
+      it('harus gagal jika terjadi error sistem server down', async () => {
+        const res = await request(app)
+          .get(`/api/led/form/${nonExistentId}`)
+          .set('Authorization', `Bearer ${authToken}`);
+
+        expect(res.status).toBe(500);
+        expect(res.body.message).toMatch("Cannot read properties of undefined (reading 'findUnique')");
+      });
+    });
+
+    describe('GET /api/led/export/document/:id', () => {
+      it('harus gagal jika dokumen id tidak terdaftar di database', async () => {
+        const res = await request(app)
+          .get(`/api/led/export/document/invalid-uuid-format`)
+          .set('Authorization', `Bearer ${authToken}`);
+
+        expect(res.status).toBe(404);
+      });
     });
   });
 
