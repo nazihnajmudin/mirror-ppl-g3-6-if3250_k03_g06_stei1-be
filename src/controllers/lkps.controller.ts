@@ -117,10 +117,8 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
     const { prodiId, name, periode } = req.body;
     const file = req.file;
     
-    // Default to req.user.prodiId if not provided (for Kaprodi)
     let targetProdiId = (prodiId as string) || (req.user as any)?.prodiId;
 
-    // "God Mode" for Super Admin: If no Prodi is provided, pick the first one from DB
     if (!targetProdiId && (req.user as any)?.role === 'SUPER_ADMIN') {
       const firstProdi = await prisma.prodi.findFirst();
       if (firstProdi) {
@@ -145,7 +143,7 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
     
     fs.writeFileSync(fullPath, file.buffer);
 
-    // 1️⃣ Parse the file to get data
+    // Parse the file to get data
     let parsedData = {};
     try {
       parsedData = await parseLKPSExcel(file.buffer);
@@ -154,7 +152,7 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
       return errorResponse(res, 'Gagal memparsing file LKPS', 400);
     }
 
-    // 2️⃣ Create DocumentLKPS
+    // Create DocumentLKPS
     const document = await lkpsService.createLKPSDocument(
       targetProdiId, 
       parsedData, // Store parsed data as content
@@ -164,7 +162,7 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
       periode?.toString()
     );
 
-    // 3️⃣ Create all 7 Kriteria for this document
+    // Create all 7 Kriteria for this document
     try {
       await lkpsService.createAllLKPSCriteria(document.id);
     } catch (kriteriaError: any) {
@@ -172,7 +170,7 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
       // Continue - we'll have document with sheets later
     }
 
-    // 4️⃣ Create sheet data from parsed data
+    // Create sheet data from parsed data
     try {
       await lkpsService.createMultipleSheetsData(document.id, parsedData);
     } catch (sheetError: any) {

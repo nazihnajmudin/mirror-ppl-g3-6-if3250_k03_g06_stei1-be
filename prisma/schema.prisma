@@ -148,6 +148,18 @@ model DocumentLED {
   @@unique([prodiId, periode, versi])
 }
 
+model LedForm {
+  id          String   @id @default(uuid())
+  prodiId     String
+  template    Template
+  periode     String
+  content     Json
+  createdById String
+  createdAt   DateTime @default(now())
+  prodi       Prodi    @relation(fields: [prodiId], references: [id])
+  createdBy   User     @relation(fields: [createdById], references: [id])
+}
+
 model DocumentTemplate {
   id          String       @id @default(uuid())
   name        String       // Contoh: "Template LKPS LAM Teknik 2026"
@@ -193,18 +205,6 @@ model EvidenFile {
 
   // Relasi
   eviden           DokumenEviden  @relation(fields: [evidenId], references: [id], onDelete: Cascade) // Jika Eviden dihapus, file juga terhapus
-}
-
-model LedForm {
-  id          String   @id @default(uuid())
-  prodiId     String
-  template    Template
-  periode     String
-  content     Json
-  createdById String
-  createdAt   DateTime @default(now())
-  prodi       Prodi    @relation(fields: [prodiId], references: [id])
-  createdBy   User     @relation(fields: [createdById], references: [id])
 }
 
 enum Template {

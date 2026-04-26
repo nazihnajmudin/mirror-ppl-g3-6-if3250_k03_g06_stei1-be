@@ -7,10 +7,10 @@ export interface LKPSParsedData {
 }
 
 /**
- * Helper: Extract cell value handling formulas, rich text, dates
+ * Helper: Extract cell value handling formulas, errors, hyperlinks, rich text, dates
  */
 const extractCellValue = (cell: any): any => {
-  let value = cell.value;
+  let value = cell?.value;
   
   if (value === null || value === undefined) return '';
   
@@ -20,22 +20,33 @@ const extractCellValue = (cell: any): any => {
   
   if (typeof value === 'object') {
     // Handle formula results
-    if ((value as any).result !== undefined) {
-      value = (value as any).result;
+    if ('result' in value) {
+      value = value.result;
+      
+      if (typeof value === 'object' && value !== null && 'error' in value) {
+        return '';
+      }
     }
-    // Handle rich text
-    else if ((value as any).richText) {
-      value = (value as any).richText.map((rt: any) => rt.text).join('');
+    // Handle Excel Errors (contoh: #DIV/0!, #N/A, #VALUE!)
+    else if ('error' in value) {
+      return '';
     }
-    // Fallback to toString
+    // Handle Hyperlink
+    else if ('hyperlink' in value && 'text' in value) {
+      value = value.text; // Ambil teks penampilnya saja
+    }
+    // Handle Rich Text
+    else if ('richText' in value) {
+      value = value.richText.map((rt: any) => rt.text).join('');
+    }
+    // Fallback
     else {
-      value = value.toString();
+      return ''; 
     }
   }
   
-  return value || '';
+  return value !== undefined && value !== null ? value : '';
 };
-
 /**
  * Helper: Find data start row (first row with value "1" in column A or B)
  */
