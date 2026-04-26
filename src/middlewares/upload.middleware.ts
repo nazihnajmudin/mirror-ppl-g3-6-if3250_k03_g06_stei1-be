@@ -44,3 +44,43 @@ export const uploadLKPSMiddleware = multer({
     fileFilter: excelFileFilter,
     limits: { fileSize: maxFileSizeMB * 1024 * 1024 }, 
 });
+
+
+// Filter Khusus Template (Word & Excel)
+const templateFileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+    const allowedMimeTypes = [
+        'application/msword', 
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel'
+    ];
+
+    if (allowedMimeTypes.includes(file.mimetype)) {
+        cb(null, true);
+    } else {
+        cb(new Error('Format file tidak valid. Hanya menerima Word (.docx) atau Excel (.xlsx)'));
+    }
+};
+
+export const uploadTemplateMiddleware = multer({
+    storage: multer.memoryStorage(),
+    fileFilter: templateFileFilter,
+    limits: { fileSize: maxFileSizeMB * 1024 * 1024 }, 
+});
+
+// Filter Khusus Eviden (Menerima PDF, Office, Gambar, Audio, Video, ZIP)
+const evidenFileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+    if (file.mimetype === 'application/x-msdownload' || file.mimetype.includes('exe')) {
+        cb(new Error('Format file berbahaya tidak diizinkan.'));
+    } else {
+        cb(null, true);
+    }
+};
+
+const evidenMaxFileSizeMB = 50; 
+
+export const uploadEvidenMiddleware = multer({
+    storage: multer.memoryStorage(),
+    fileFilter: evidenFileFilter,
+    limits: { fileSize: evidenMaxFileSizeMB * 1024 * 1024 }, 
+});
