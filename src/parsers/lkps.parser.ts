@@ -1,10 +1,71 @@
 const ExcelJS = require('exceljs');
 import { Buffer } from 'buffer';
+import { getSheetConfig } from '@/config/lkps.config';
 
 export interface LKPSParsedData {
   [sheetName: string]: any[];
 }
 
+/**
+ * Helper: Extract cell value handling formulas, rich text, dates
+ */
+const extractCellValue = (cell: any): any => {
+  let value = cell.value;
+  
+  if (value === null || value === undefined) return '';
+  
+  if (value instanceof Date) {
+    return value;
+  }
+  
+  if (typeof value === 'object') {
+    // Handle formula results
+    if ((value as any).result !== undefined) {
+      value = (value as any).result;
+    }
+    // Handle rich text
+    else if ((value as any).richText) {
+      value = (value as any).richText.map((rt: any) => rt.text).join('');
+    }
+    // Fallback to toString
+    else {
+      value = value.toString();
+    }
+  }
+  
+  return value || '';
+};
+
+/**
+ * Helper: Find data start row (first row with value "1" in column A or B)
+ */
+const findDataStartRow = (worksheet: any, maxRows = 30): number => {
+  for (let r = 1; r <= maxRows; r++) {
+    const row = worksheet.getRow(r);
+    const valA = extractCellValue(row.getCell(1));
+    const valB = extractCellValue(row.getCell(2));
+    
+    if (valA === 1 || valB === 1) {
+      return r;
+    }
+  }
+  return 10; // Default fallback
+};
+
+/**
+ * Helper: Find start column (A=1 or B=2 where first row data starts)
+ */
+const findDataStartCol = (worksheet: any, headerRow: number): number => {
+  const row = worksheet.getRow(headerRow);
+  const valA = extractCellValue(row.getCell(1));
+  const valB = extractCellValue(row.getCell(2));
+  
+  return (valA === 1) ? 1 : 2;
+};
+
+/**
+ * Main parser: Convert Excel array data to array of objects
+ */
 export const parseLKPSExcel = async (buffer: Buffer): Promise<LKPSParsedData> => {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer as any);
@@ -18,87 +79,70 @@ export const parseLKPSExcel = async (buffer: Buffer): Promise<LKPSParsedData> =>
     '6e3-4', '6e4', '6f1', '6f2', '6g1', '6g2', '6h1', '6h2', '6i', '7a', '7b'
   ];
 
-  SHEETS.forEach(sheetName => {
+  for (const sheetName of SHEETS) {
     const worksheet = workbook.getWorksheet(sheetName);
     if (!worksheet) {
       result[sheetName] = [];
-      return;
+      continue;
     }
 
-    let startRow = 10; 
-    let startCol = 2;
-    let colCount = 10;
-    let foundHeader = false;
+    // Get sheet config to know column structure
+    const sheetConfig = getSheetConfig(sheetName);
+    if (!sheetConfig) {
+      result[sheetName] = [];
+      continue;
+    }
+
+    // Find where data starts
+    const headerRow = findDataStartRow(worksheet);
+    const startCol = findDataStartCol(worksheet, headerRow);
+    const numCols = sheetConfig.columns.length;
     
-    // Scan rows to find the numbering row (1, 2, 3...)
-    for (let r = 1; r <= 30; r++) {
-      const row = worksheet.getRow(r);
-      // Check Col A (1) and Col B (2) for the '1'
-      const valA = row.getCell(1).value;
-      const valB = row.getCell(2).value;
+    // Parse data rows (starting after header)
+    const sheetData: any[] = [];
+    let rowNum = headerRow + 1;
+    let consecutiveEmptyRows = 0;
+    
+    while (true) {
+      const row = worksheet.getRow(rowNum);
+      const rowObj: any = {};
+      let hasData = false;
       
-      if (valA === 1 || valB === 1) {
-        foundHeader = true;
-        startRow = r + 1;
-        startCol = (valA === 1) ? 1 : 2;
+      // Map each column to its key from config
+      for (let colIdx = 0; colIdx < numCols; colIdx++) {
+        const columnConfig = sheetConfig.columns[colIdx];
+        const cell = row.getCell(startCol + colIdx);
+        const value = extractCellValue(cell);
         
-        // Count columns
-        let c = startCol;
-        while (true) {
-          const v = row.getCell(c).value;
-          if (v === null || v === undefined || v === '') break;
-          c++;
+        if (value !== '' && value !== null && value !== undefined) {
+          hasData = true;
         }
-        colCount = c - startCol;
-        break;
+        
+        // Type conversion based on column type
+        let typedValue = value;
+        if (columnConfig.type === 'number' && value !== '' && !isNaN(Number(value))) {
+          typedValue = Number(value);
+        } else if (columnConfig.type === 'boolean') {
+          typedValue = value === true || value === 'true' || value === 1 || value === '1';
+        }
+        
+        rowObj[columnConfig.key] = typedValue || '';
       }
-    }
-
-    const sheetData: any[][] = [];
-    if (foundHeader) {
-      let rowNum = startRow;
-      let consecutiveEmptyRows = 0;
       
-      while (true) {
-        const row = worksheet.getRow(rowNum);
-        const rowData: any[] = [];
-        let hasData = false;
-        
-        for (let i = 0; i < colCount; i++) {
-          const cell = row.getCell(startCol + i);
-          let value = cell.value;
-          
-          if (value && typeof value === 'object') {
-            if (value instanceof Date) {
-              // keep date
-            } else if ((value as any).result !== undefined) {
-              value = (value as any).result;
-            } else if ((value as any).richText) {
-              value = (value as any).richText.map((rt: any) => rt.text).join('');
-            } else {
-              value = value.toString();
-            }
-          }
-          
-          if (value !== null && value !== undefined && value !== '') {
-            hasData = true;
-          }
-          rowData.push(value === null || value === undefined ? '' : value);
-        }
-        
-        if (hasData) {
-          sheetData.push(rowData);
-          consecutiveEmptyRows = 0;
-        } else {
-          consecutiveEmptyRows++;
-        }
-        
-        if (consecutiveEmptyRows >= 10 || rowNum > 1000) break;
-        rowNum++;
+      if (hasData) {
+        sheetData.push(rowObj);
+        consecutiveEmptyRows = 0;
+      } else {
+        consecutiveEmptyRows++;
       }
+      
+      // Stop if 10 consecutive empty rows or reached max
+      if (consecutiveEmptyRows >= 10 || rowNum > 1000) break;
+      rowNum++;
     }
+    
     result[sheetName] = sheetData;
-  });
+  }
 
   return result;
 };

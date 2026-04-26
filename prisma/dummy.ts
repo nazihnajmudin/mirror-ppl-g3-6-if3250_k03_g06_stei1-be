@@ -355,7 +355,6 @@ async function main() {
   // Create dummy LKPS Document for IF Prodi
   const dummyLKPSDoc = await prisma.documentLKPS.create({
     data: {
-      id: 'lkps-dummy-if-2025-v1',
       prodiId: prodiIdByKey['if'],
       name: 'LKPS IF 2025 Semester Genap',
       status: 'DRAFT',
@@ -645,6 +644,55 @@ async function main() {
     },
   });
   console.log('Created Sheet 7a: Dokumen SPMI (Kriteria 7)');
+
+  // Auto-seed remaining sheets with empty data
+  const { getAllSheetNames } = await import('../src/config/lkps.config');
+  const allSheetNames = getAllSheetNames();
+  const seededSheets = new Set(['1', '2a1', '3a1', '4a', '5a', '6a', '7a', 'PS', 'PSPPI']);
+
+  console.log(`Auto-seeding remaining sheets (${allSheetNames.length - seededSheets.size} sheets)...`);
+
+  for (const sheetName of allSheetNames) {
+    if (seededSheets.has(sheetName)) continue; // Skip already seeded sheets
+
+    // Determine criteria ID based on sheet name
+    let criteriaCode = '0';
+    if (sheetName === '1') criteriaCode = '1';
+    else if (sheetName.startsWith('2')) criteriaCode = '2';
+    else if (sheetName.startsWith('3')) criteriaCode = '3';
+    else if (sheetName.startsWith('4')) criteriaCode = '4';
+    else if (sheetName.startsWith('5')) criteriaCode = '5';
+    else if (sheetName.startsWith('6')) criteriaCode = '6';
+    else if (sheetName.startsWith('7')) criteriaCode = '7';
+
+    const criteriaId = kriteriaIds[criteriaCode] || kriteriaIds['1'];
+
+    // Import config to get sheet details
+    const { getSheetConfig } = await import('../src/config/lkps.config');
+    const sheetConfig = getSheetConfig(sheetName);
+
+    if (!sheetConfig) continue;
+
+    try {
+      await prisma.lKPSSheetData.create({
+        data: {
+          criteriaId,
+          sheetName,
+          sheetTitle: sheetConfig.sheetTitle,
+          data: [], // Empty data for now
+          isCompleted: false,
+        },
+      });
+      console.log(`✓ Created Sheet ${sheetName}: ${sheetConfig.sheetTitle} (empty)`);
+    } catch (error: any) {
+      // Silently skip if already exists (unique constraint)
+      if (error.code === 'P2002') {
+        console.log(`⊘ Sheet ${sheetName} already exists, skipping...`);
+      } else {
+        console.error(`✗ Error creating sheet ${sheetName}:`, error.message);
+      }
+    }
+  }
 
   console.log('LKPS seeding completed successfully!');
 }

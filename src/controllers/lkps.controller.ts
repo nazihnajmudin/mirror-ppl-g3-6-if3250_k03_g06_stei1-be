@@ -3,6 +3,7 @@ import { successResponse, errorResponse } from '../utils/response';
 import { parseLKPSExcel } from '../parsers/lkps.parser';
 import * as lkpsService from '../services/lkps.service';
 import prisma from '../config/database.config';
+import { getSheetConfig, LKPS_SHEETS } from '../config/lkps.config';
 import path from 'path';
 import fs from 'fs';
 
@@ -144,26 +145,54 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
     
     fs.writeFileSync(fullPath, file.buffer);
 
-    // Parse the file to get content for Mirror Data Entry
-    let content = {};
+    // 1️⃣ Parse the file to get data
+    let parsedData = {};
     try {
-      content = await parseLKPSExcel(file.buffer);
+      parsedData = await parseLKPSExcel(file.buffer);
     } catch (parseError) {
-      console.error('Failed to parse LKPS content on confirm, storing empty content', parseError);
+      console.error('Failed to parse LKPS content on confirm:', parseError);
+      return errorResponse(res, 'Gagal memparsing file LKPS', 400);
     }
 
+    // 2️⃣ Create DocumentLKPS
     const document = await lkpsService.createLKPSDocument(
       targetProdiId, 
-      content, 
+      parsedData, // Store parsed data as content
       name || `LKPS - ${originalFilename}`, 
       filePath, 
       originalFilename,
       periode?.toString()
     );
+
+    // 3️⃣ Create all 7 Kriteria for this document
+    try {
+      await lkpsService.createAllLKPSCriteria(document.id);
+    } catch (kriteriaError: any) {
+      console.error('Failed to create kriteria:', kriteriaError);
+      // Continue - we'll have document with sheets later
+    }
+
+    // 4️⃣ Create sheet data from parsed data
+    try {
+      await lkpsService.createMultipleSheetsData(document.id, parsedData);
+    } catch (sheetError: any) {
+      console.error('Failed to create sheet data:', sheetError);
+      // Return validation error if it's from validation, otherwise continue
+      if (sheetError.message?.includes('Validasi')) {
+        return errorResponse(res, sheetError.message, 400);
+      }
+    }
+
+    // Return created document with all related data
+    const fullDocument = await lkpsService.getLKPSDocumentById(document.id);
     
-    return successResponse(res, document, 'LKPS berhasil diupload', 201);
+    return successResponse(res, fullDocument, 'LKPS berhasil diupload dan disimpan', 201);
   } catch (error: any) {
     console.error('Error uploading LKPS:', error);
+    // Check if error is validation error
+    if (error.message?.includes('Validasi')) {
+      return errorResponse(res, error.message, 400);
+    }
     return errorResponse(res, 'Gagal mengupload LKPS', 500);
   }
 };
@@ -358,5 +387,487 @@ export const exportLKPSHandler = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Error exporting LKPS:', error);
     return errorResponse(res, 'Gagal mengekspor LKPS', 500);
+  }
+};
+
+/**
+ * @swagger
+ * /api/lkps/sheet/{criteriaId}/{sheetName}:
+ *   get:
+ *     summary: Get data from specific LKPS sheet
+ *     description: Retrieve data from a specific sheet within a criteria
+ *     tags: [LKPS]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: criteriaId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: sheetName
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Sheet data retrieved successfully
+ *       404:
+ *         description: Sheet not found
+ *       500:
+ *         description: Failed to get sheet data
+ */
+export const getLKPSSheetHandler = async (req: Request, res: Response) => {
+  try {
+    const criteriaId = req.params.criteriaId as string;
+    const sheetName = req.params.sheetName as string;
+    
+    const sheetData = await lkpsService.getLKPSSheetData(criteriaId, sheetName);
+    
+    if (!sheetData) {
+      return errorResponse(res, 'Sheet tidak ditemukan', 404);
+    }
+    
+    return successResponse(res, sheetData, 'Berhasil mengambil data sheet');
+  } catch (error: any) {
+    console.error('Error getting sheet:', error);
+    return errorResponse(res, 'Gagal mengambil data sheet', 500);
+  }
+};
+
+/**
+ * @swagger
+ * /api/lkps/sheet/{criteriaId}/{sheetName}:
+ *   put:
+ *     summary: Update LKPS sheet data
+ *     description: Update data in a specific sheet
+ *     tags: [LKPS]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: criteriaId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: sheetName
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               data:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *     responses:
+ *       200:
+ *         description: Sheet data updated successfully
+ *       404:
+ *         description: Sheet not found
+ *       500:
+ *         description: Failed to update sheet data
+ */
+export const updateLKPSSheetHandler = async (req: Request, res: Response) => {
+  try {
+    const criteriaId = req.params.criteriaId as string;
+    const sheetName = req.params.sheetName as string;
+    const { data } = req.body;
+    
+    if (!Array.isArray(data)) {
+      return errorResponse(res, 'Data harus berupa array', 400);
+    }
+    
+    const updated = await lkpsService.updateLKPSSheetData(criteriaId, sheetName, data);
+    
+    return successResponse(res, updated, 'Data sheet berhasil diperbarui');
+  } catch (error: any) {
+    console.error('Error updating sheet:', error);
+    // Check if error is validation error
+    if (error.message?.includes('Validasi')) {
+      return errorResponse(res, error.message, 400);
+    }
+    return errorResponse(res, 'Gagal memperbarui data sheet', 500);
+  }
+};
+
+/**
+ * @swagger
+ * /api/lkps/sheet/{criteriaId}/{sheetName}/complete:
+ *   post:
+ *     summary: Mark LKPS sheet as completed
+ *     description: Mark a sheet as completed for this criteria
+ *     tags: [LKPS]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: criteriaId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: sheetName
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Sheet marked as completed
+ *       404:
+ *         description: Sheet not found
+ *       500:
+ *         description: Failed to mark sheet as completed
+ */
+export const completeSheetHandler = async (req: Request, res: Response) => {
+  try {
+    const criteriaId = req.params.criteriaId as string;
+    const sheetName = req.params.sheetName as string;
+    
+    const updated = await lkpsService.markSheetCompleted(criteriaId, sheetName);
+    
+    return successResponse(res, updated, 'Sheet berhasil ditandai selesai');
+  } catch (error: any) {
+    console.error('Error completing sheet:', error);
+    return errorResponse(res, 'Gagal menandai sheet selesai', 500);
+  }
+};
+
+/**
+ * @swagger
+ * /api/lkps/config/{sheetName}:
+ *   get:
+ *     summary: Get LKPS sheet configuration
+ *     description: Retrieve column definitions, row types, and metadata for a specific sheet
+ *     tags: [LKPS]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sheetName
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Sheet name (e.g., "1", "2a1", "3a1")
+ *     responses:
+ *       200:
+ *         description: Sheet configuration retrieved
+ *       404:
+ *         description: Sheet configuration not found
+ *       500:
+ *         description: Failed to get configuration
+ */
+export const getSheetConfigHandler = async (req: Request, res: Response) => {
+  try {
+    const sheetName = req.params.sheetName as string;
+    
+    const config = getSheetConfig(sheetName);
+    if (!config) {
+      return errorResponse(res, `Sheet "${sheetName}" tidak ditemukan`, 404);
+    }
+    
+    return successResponse(res, config, 'Berhasil mengambil konfigurasi sheet');
+  } catch (error: any) {
+    console.error('Error getting sheet config:', error);
+    return errorResponse(res, 'Gagal mengambil konfigurasi sheet', 500);
+  }
+};
+
+/**
+ * @swagger
+ * /api/lkps/sheets-by-program/{programType}:
+ *   get:
+ *     summary: Get applicable sheets for a program type
+ *     description: Retrieve all sheet names and configurations applicable to a specific program type (D1, D2, D3, S, STr, M, MTr, D, DTr, PSPPI)
+ *     tags: [LKPS]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: programType
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Program type (e.g., "S", "D3", "PSPPI")
+ *     responses:
+ *       200:
+ *         description: Applicable sheets retrieved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       sheetName:
+ *                         type: string
+ *                       sheetTitle:
+ *                         type: string
+ *                       criteriaCode:
+ *                         type: string
+ *       400:
+ *         description: Invalid program type
+ *       500:
+ *         description: Failed to get sheets
+ */
+export const getSheetsByProgramHandler = async (req: Request, res: Response) => {
+  try {
+    const programType = req.params.programType as string;
+    
+    // Validate program type
+    const validPrograms = ['D1', 'D2', 'D3', 'S', 'STr', 'M', 'MTr', 'D', 'DTr', 'PSPPI'];
+    if (!validPrograms.includes(programType)) {
+      return errorResponse(
+        res,
+        `Program type tidak valid. Pilihan: ${validPrograms.join(', ')}`,
+        400
+      );
+    }
+    
+    // Get all applicable sheets
+    const applicableSheets = Object.entries(LKPS_SHEETS)
+      .filter(([_, config]) => config.applicableTo.includes(programType))
+      .map(([sheetName, config]) => ({
+        sheetName: config.sheetName,
+        sheetTitle: config.sheetTitle,
+        criteriaCode: config.criteriaCode,
+        rowType: config.rowType,
+        columns: config.columns.length,
+      }));
+    
+    return successResponse(
+      res,
+      applicableSheets,
+      `Berhasil mengambil ${applicableSheets.length} sheet untuk program ${programType}`
+    );
+  } catch (error: any) {
+    console.error('Error getting sheets by program:', error);
+    return errorResponse(res, 'Gagal mengambil daftar sheet', 500);
+  }
+};
+
+/**
+ * @swagger
+ * /api/lkps/document/{documentId}/sheets:
+ *   get:
+ *     summary: Get all sheets in a document
+ *     description: Retrieve all sheet names and their completion status for a document
+ *     tags: [LKPS]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: documentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: LKPS document ID
+ *     responses:
+ *       200:
+ *         description: Document sheets retrieved
+ *       404:
+ *         description: Document not found
+ *       500:
+ *         description: Failed to get sheets
+ */
+export const getDocumentSheetsHandler = async (req: Request, res: Response) => {
+  try {
+    const documentId = req.params.documentId as string;
+    
+    // Verify document exists
+    const document = await lkpsService.getLKPSDocumentById(documentId);
+    if (!document) {
+      return errorResponse(res, 'Dokumen tidak ditemukan', 404);
+    }
+    
+    // Build sheet list with completion status
+    const sheetList = document.criterias.flatMap(criteria =>
+      criteria.sheets.map(sheet => ({
+        sheetName: sheet.sheetName,
+        sheetTitle: sheet.sheetTitle,
+        criteriaId: criteria.id,
+        criteriaCode: criteria.criteriaCode,
+        criteriaName: criteria.criteriaName,
+        isCompleted: sheet.isCompleted,
+        createdAt: sheet.createdAt,
+        updatedAt: sheet.updatedAt,
+      }))
+    );
+    
+    return successResponse(
+      res,
+      {
+        documentId,
+        totalSheets: sheetList.length,
+        completedSheets: sheetList.filter(s => s.isCompleted).length,
+        sheets: sheetList,
+      },
+      'Berhasil mengambil daftar sheet dokumen'
+    );
+  } catch (error: any) {
+    console.error('Error getting document sheets:', error);
+    return errorResponse(res, 'Gagal mengambil daftar sheet', 500);
+  }
+};
+
+/**
+ * @swagger
+ * /api/lkps/sheet/{criteriaId}/{sheetName}/autosave:
+ *   put:
+ *     summary: Auto-save LKPS sheet data (lightweight)
+ *     description: Quick auto-save without full validation - for real-time updates
+ *     tags: [LKPS]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: criteriaId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: sheetName
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               data:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *     responses:
+ *       200:
+ *         description: Auto-save successful
+ *       400:
+ *         description: Invalid data format
+ *       500:
+ *         description: Failed to auto-save
+ */
+export const autoSaveLKPSSheetHandler = async (req: Request, res: Response) => {
+  try {
+    const criteriaId = req.params.criteriaId as string;
+    const sheetName = req.params.sheetName as string;
+    const { data } = req.body;
+    
+    if (!Array.isArray(data)) {
+      return errorResponse(res, 'Data harus berupa array', 400);
+    }
+    
+    const updated = await lkpsService.autoSaveLKPSSheetData(criteriaId, sheetName, data);
+    
+    return successResponse(res, updated, 'Data sheet auto-saved');
+  } catch (error: any) {
+    console.error('Error auto-saving sheet:', error);
+    return errorResponse(res, 'Gagal auto-save data sheet', 500);
+  }
+};
+
+/**
+ * @swagger
+ * /api/lkps/document/{documentId}/save-draft:
+ *   post:
+ *     summary: Save LKPS document as draft
+ *     description: Explicitly save the entire document as draft status
+ *     tags: [LKPS]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: documentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Document saved as draft
+ *       404:
+ *         description: Document not found
+ *       500:
+ *         description: Failed to save document
+ */
+export const saveLKPSDocumentAsDraftHandler = async (req: Request, res: Response) => {
+  try {
+    const documentId = req.params.documentId as string;
+    
+    // Verify document exists
+    const document = await lkpsService.getLKPSDocumentById(documentId);
+    if (!document) {
+      return errorResponse(res, 'Dokumen tidak ditemukan', 404);
+    }
+    
+    const updated = await lkpsService.saveLKPSDocumentAsDraft(documentId);
+    
+    return successResponse(res, updated, 'Dokumen LKPS berhasil disimpan sebagai draft');
+  } catch (error: any) {
+    console.error('Error saving document as draft:', error);
+    return errorResponse(res, 'Gagal menyimpan dokumen', 500);
+  }
+};
+
+/**
+ * @swagger
+ * /api/lkps/document/{documentId}/finalize:
+ *   post:
+ *     summary: Finalize LKPS document (submit as final)
+ *     description: Mark document as final status - requires all mandatory sheets to be completed
+ *     tags: [LKPS]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: documentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Document finalized successfully
+ *       404:
+ *         description: Document not found
+ *       400:
+ *         description: Cannot finalize - missing required sheets
+ *       500:
+ *         description: Failed to finalize document
+ */
+export const finalizeLKPSDocumentHandler = async (req: Request, res: Response) => {
+  try {
+    const documentId = req.params.documentId as string;
+    
+    // Verify document exists
+    const document = await lkpsService.getLKPSDocumentById(documentId);
+    if (!document) {
+      return errorResponse(res, 'Dokumen tidak ditemukan', 404);
+    }
+    
+    // Optional: Check if all sheets are completed (business logic)
+    const allSheets = document.criterias.flatMap(c => c.sheets);
+    const hasData = allSheets.length > 0;
+    
+    if (!hasData) {
+      return errorResponse(res, 'Tidak ada data sheet dalam dokumen', 400);
+    }
+    
+    const updated = await lkpsService.finalizeLKPSDocument(documentId);
+    
+    return successResponse(res, updated, 'Dokumen LKPS berhasil difinalisasi');
+  } catch (error: any) {
+    console.error('Error finalizing document:', error);
+    return errorResponse(res, 'Gagal menfinalisasi dokumen', 500);
   }
 };
