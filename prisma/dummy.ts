@@ -343,7 +343,12 @@ async function main() {
 
     for (const template of dummyTemplates) {
       await prisma.documentTemplate.upsert({
-        where: { id: template.id },
+        where: {
+          type_category: {
+            type: template.type,
+            category: template.category,
+          },
+        },
         update: template,
         create: template,
       });
