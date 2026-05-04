@@ -87,7 +87,6 @@ const createNotificationIfNotExists = async (params: {
     where: {
       prodiId: params.prodiId,
       title: params.title,
-      isRead: false,
       createdAt: {
         gte: new Date(new Date().setDate(new Date().getDate() - 7))
       }
