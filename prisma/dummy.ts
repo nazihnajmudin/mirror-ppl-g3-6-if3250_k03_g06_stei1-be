@@ -6,6 +6,20 @@ const prisma = new PrismaClient();
 async function main() {
   const hashedPassword = await bcrypt.hash('password123', 10);
 
+  console.log('Seeding Threshold Configurations...');
+  const defaultThresholds = [
+    { name: 'accreditation_expiry_warning_days', value: 180 },
+    { name: 'document_inactivity_days', value: 30 },
+  ];
+
+  for (const t of defaultThresholds) {
+    await prisma.thresholdConfig.upsert({
+      where: { name: t.name },
+      update: {},
+      create: t,
+    });
+  }
+
   const prodiSeeds = [
     {
       key: 'if',

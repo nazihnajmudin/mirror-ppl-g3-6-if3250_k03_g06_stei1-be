@@ -7,6 +7,8 @@ import lkpsRoutes from './lkps.routes';
 import ledRoutes from './led.routes';
 import templateRoutes from './template.routes';
 import evidenRoutes from './eviden.routes';
+import notificationRoutes from './notification.routes';
+import settingsRoutes from './settings.routes';
 
 const router = Router();
 
@@ -18,5 +20,7 @@ router.use('/lkps', lkpsRoutes);
 router.use('/led', ledRoutes);
 router.use('/templates', templateRoutes);
 router.use('/eviden', evidenRoutes);
+router.use('/notifications', notificationRoutes);
+router.use('/settings', settingsRoutes);
 
 export default router;

@@ -21,6 +21,7 @@ model Prodi {
   users         User[]
   dokumenEviden DokumenEviden[]
   ledForms      LedForm[]
+  notifications Notification[]
 }
 
 model User {
@@ -232,4 +233,29 @@ enum LamCategory {
 enum TemplateType {
   LKPS
   LED
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  prodiId   String?
+  title     String
+  message   String
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  targetUrl String?
+  createdAt DateTime         @default(now())
+  prodi     Prodi?           @relation(fields: [prodiId], references: [id])
+}
+
+model ThresholdConfig {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  value     Int
+  updatedAt DateTime @updatedAt
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  DANGER
 }
