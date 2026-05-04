@@ -82,5 +82,24 @@ const evidenMaxFileSizeMB = 50;
 export const uploadEvidenMiddleware = multer({
     storage: multer.memoryStorage(),
     fileFilter: evidenFileFilter,
-    limits: { fileSize: evidenMaxFileSizeMB * 1024 * 1024 }, 
+    limits: { fileSize: evidenMaxFileSizeMB * 1024 * 1024 },
+});
+
+const certificateFileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+    const allowedMimeTypes = [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+    ];
+    if (allowedMimeTypes.includes(file.mimetype)) {
+        cb(null, true);
+    } else {
+        cb(new Error('Format file tidak valid. Hanya menerima PDF, JPEG, atau PNG'));
+    }
+};
+
+export const uploadCertificateMiddleware = multer({
+    storage: multer.memoryStorage(),
+    fileFilter: certificateFileFilter,
+    limits: { fileSize: maxFileSizeMB * 1024 * 1024 },
 });
