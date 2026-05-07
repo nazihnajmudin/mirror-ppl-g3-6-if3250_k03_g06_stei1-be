@@ -431,3 +431,23 @@ export const softDeleteAllDraftsHandler = async (req: Request, res: Response) =>
         errorResponse(res, err.message, 400);
     }
 };
+
+export const uploadLEDImageHandler = async (req: Request, res: Response): Promise<void> => {
+    try {
+        if (!req.user?.userId) {
+            errorResponse(res, 'Pengguna tidak terautentikasi', 401);
+            return;
+        }
+        if (!req.file) {
+            errorResponse(res, 'File gambar wajib diunggah', 400);
+            return;
+        }
+        const port = process.env.PORT || '8000';
+        const backendUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
+        const relativePath = `/uploads/led/${req.file.filename}`;
+        const imageUrl = `${backendUrl}${relativePath}`;
+        successResponse(res, { url: imageUrl, path: relativePath }, 'Gambar berhasil diunggah', 201);
+    } catch (err: any) {
+        errorResponse(res, err.message, 500);
+    }
+};

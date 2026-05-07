@@ -1,6 +1,7 @@
 import prisma from '../config/database.config';
 import { Role } from '@prisma/client';
 import { UpdateProdiInput, UpsertAccreditationInput } from '../validators/prodi.validator';
+import { storageProvider } from '../utils/storage';
 
 export interface DashboardData {
   prodi: {
@@ -155,6 +156,32 @@ export const upsertAccreditation = async (prodiId: string, data: UpsertAccredita
       startDate: data.startDate ? new Date(data.startDate) : null,
       endDate: data.endDate ? new Date(data.endDate) : null,
       certificateUrl: data.certificateUrl,
+    },
+  });
+};
+
+export const uploadAccreditationCertificate = async (prodiId: string, file: Express.Multer.File) => {
+  const prodi = await prisma.prodi.findUnique({ where: { id: prodiId } });
+  if (!prodi) throw new Error('Program studi tidak ditemukan');
+
+  const existing = await prisma.accreditationInfo.findUnique({ where: { prodiId } });
+
+  if (existing?.certificateUrl && !existing.certificateUrl.startsWith('http')) {
+    try { await storageProvider.delete(existing.certificateUrl, 'accreditation'); } catch (_) {}
+  }
+
+  const savedFileName = await storageProvider.upload(file, 'accreditation');
+
+  return prisma.accreditationInfo.upsert({
+    where: { prodiId },
+    update: {
+      certificateUrl: savedFileName,
+      certificateOriginalName: file.originalname,
+    },
+    create: {
+      prodiId,
+      certificateUrl: savedFileName,
+      certificateOriginalName: file.originalname,
     },
   });
 };

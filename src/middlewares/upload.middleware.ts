@@ -1,4 +1,6 @@
 import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 const storage = multer.memoryStorage();
 const maxFileSizeMB = parseInt(process.env.MAX_FILE_SIZE_MB || '10', 10);
@@ -82,5 +84,57 @@ const evidenMaxFileSizeMB = 50;
 export const uploadEvidenMiddleware = multer({
     storage: multer.memoryStorage(),
     fileFilter: evidenFileFilter,
-    limits: { fileSize: evidenMaxFileSizeMB * 1024 * 1024 }, 
+    limits: { fileSize: evidenMaxFileSizeMB * 1024 * 1024 },
+});
+
+const certificateFileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+    const allowedMimeTypes = [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+    ];
+    if (allowedMimeTypes.includes(file.mimetype)) {
+        cb(null, true);
+    } else {
+        cb(new Error('Format file tidak valid. Hanya menerima PDF, JPEG, atau PNG'));
+    }
+};
+
+export const uploadCertificateMiddleware = multer({
+    storage: multer.memoryStorage(),
+    fileFilter: certificateFileFilter,
+    limits: { fileSize: maxFileSizeMB * 1024 * 1024 },
+});
+
+const ledImageFileFilter = (_req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+    const allowedMimeTypes = [
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'image/gif',
+    ];
+    if (allowedMimeTypes.includes(file.mimetype)) {
+        cb(null, true);
+    } else {
+        cb(new Error('Format file tidak valid. Hanya menerima gambar (JPEG, PNG, WebP, GIF)'));
+    }
+};
+
+const ledImageStorage = multer.diskStorage({
+    destination: (_req, _file, cb) => {
+        const dir = path.join(process.cwd(), 'uploads', 'led');
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        const ext = path.extname(file.originalname);
+        cb(null, `LED-IMG-${uniqueSuffix}${ext}`);
+    },
+});
+
+export const uploadLEDImageMiddleware = multer({
+    storage: ledImageStorage,
+    fileFilter: ledImageFileFilter,
+    limits: { fileSize: 10 * 1024 * 1024 },
 });
