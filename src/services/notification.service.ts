@@ -1,12 +1,15 @@
 import prisma from '../config/database.config';
 import { getThresholdValue } from './settings.service';
 import { NotificationType } from '@prisma/client';
+import { getSimulationByProdi } from './simulasiskor.service';
 
 export const generateEarlyWarnings = async () => {
   console.log('[Notification Service] Generating early warnings...');
   
   const expiryThreshold = await getThresholdValue('accreditation_expiry_warning_days', 180);
   const inactivityThreshold = await getThresholdValue('document_inactivity_days', 30);
+  const passingGradeThresholdRaw = await getThresholdValue('indicator_passing_grade', 25);
+  const passingGradeThreshold = passingGradeThresholdRaw / 10; // Convert 25 -> 2.5
   
   const now = new Date();
   const warningDate = new Date();
@@ -72,6 +75,27 @@ export const generateEarlyWarnings = async () => {
         type: 'INFO',
         targetUrl: `/led`,
       });
+    }
+
+    // 4. Check Indicator Scores (Low Achievement Warning)
+    try {
+      const simulation = await getSimulationByProdi(prodi.id);
+      for (const indicator of simulation.indicators) {
+        // Convert 0-100 score to 0-4 scale for comparison with threshold (e.g. 2.5)
+        const scaledScore = indicator.totalScore / 25;
+        
+        if (scaledScore < passingGradeThreshold) {
+          await createNotificationIfNotExists({
+            prodiId: prodi.id,
+            title: `Capaian Indikator Rendah: ${indicator.name}`,
+            message: `Skor indikator ${indicator.name} (${scaledScore.toFixed(2)}) berada di bawah passing grade (${passingGradeThreshold.toFixed(2)}).`,
+            type: 'WARNING',
+            targetUrl: `/dashboard/lkps/${prodi.id}`,
+          });
+        }
+      }
+    } catch (simError) {
+      console.error(`[Notification Service] Gagal mengambil simulasi untuk prodi ${prodi.id}:`, simError);
     }
   }
 };

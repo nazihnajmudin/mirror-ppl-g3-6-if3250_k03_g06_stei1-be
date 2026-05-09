@@ -1,5 +1,5 @@
 import prisma from '../config/database.config';
-import { LKPS_KRITERIA } from '@/config/lkps.config';
+import { LKPS_KRITERIA } from '../config/lkps.config';
 
 export interface SimulationIndicator {
   code: string;
@@ -19,7 +19,7 @@ const normalizeIndicatorText = (value: unknown): string => {
 
 const buildIndicatorTemplate = () =>
   Object.entries(LKPS_KRITERIA).map(([criteriaCode, criteriaInfo]) => ({
-    code: C.{criteriaCode},
+    code: `C.${criteriaCode}`,
     name: criteriaInfo.name,
   }));
 
@@ -156,20 +156,20 @@ export const getSimulationByProdi = async (prodiId: string) => {
   const autoSimulation = await calculateIndicatorQuantitative(prodiId);
   const existing = await prisma.accreditationSimulation.findUnique({ where: { prodiId } });
 
-  const indicators = mergeManualQualitative(autoSimulation.indicators, existing?.indicators ?? []);
+  const indicators = mergeManualQualitative(autoSimulation.indicators, (existing?.indicators as any) ?? []);
   const summary = buildSimulationSummary(indicators);
 
   const result = await prisma.accreditationSimulation.upsert({
     where: { prodiId },
     update: {
-      indicators,
+      indicators: indicators as any,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
     },
     create: {
       prodiId,
-      indicators,
+      indicators: indicators as any,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
@@ -215,14 +215,14 @@ export const updateSimulationQualitative = async (
   const result = await prisma.accreditationSimulation.upsert({
     where: { prodiId },
     update: {
-      indicators: mergedIndicators,
+      indicators: mergedIndicators as any,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
     },
     create: {
       prodiId,
-      indicators: mergedIndicators,
+      indicators: mergedIndicators as any,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
