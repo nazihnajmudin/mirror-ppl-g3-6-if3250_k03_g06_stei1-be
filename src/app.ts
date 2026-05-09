@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import session from 'express-session';
 import swaggerUi from 'swagger-ui-express';
+import path from 'path';
 import { swaggerSpec } from './config/swagger.config';
 import passport from './config/passport.config';
 import { sessionConfig } from './config/sso.config';
@@ -38,6 +39,11 @@ app.get('/api/docs.json', (_req, res) => {
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(process.cwd(), 'uploads')));
 
 // API Routes
 app.use('/api', routes);

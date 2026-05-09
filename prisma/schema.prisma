@@ -61,6 +61,7 @@ model AccreditationInfo {
   startDate      DateTime?
   endDate        DateTime?
   certificateUrl String?
+  certificateOriginalName String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   prodi          Prodi     @relation(fields: [prodiId], references: [id])
