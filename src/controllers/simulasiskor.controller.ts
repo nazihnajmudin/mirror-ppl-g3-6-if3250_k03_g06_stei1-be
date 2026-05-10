@@ -15,6 +15,12 @@ export const getSimulationByProdiHandler = async (req: Request, res: Response) =
 
 export const updateSimulationQualitativeHandler = async (req: Request, res: Response) => {
   try {
+    // Only KAPRODI can update qualitative scores
+    const userRole = (req.user as any)?.role;
+    if (userRole !== 'KAPRODI') {
+      return errorResponse(res, 'Hanya Kaprodi yang dapat mengubah skor kualitatif', 403);
+    }
+
     const prodiId = String(req.params.prodiId);
     const { qualitativeScores } = req.body;
     const simulation = await simulasiskorService.updateSimulationQualitative(prodiId, qualitativeScores);

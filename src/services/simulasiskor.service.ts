@@ -23,6 +23,32 @@ const buildIndicatorTemplate = () =>
     name: criteriaInfo.name,
   }));
 
+const parseSavedIndicators = (value: unknown): Array<Partial<SimulationIndicator>> => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Partial<SimulationIndicator> =>
+      item !== null && typeof item === 'object' && 'code' in item && typeof (item as any).code === 'string'
+    )
+    .map((item) => ({
+      code: typeof item.code === 'string' ? item.code : '',
+      name: typeof item.name === 'string' ? item.name : '',
+      quantitativeScore: typeof item.quantitativeScore === 'number' ? item.quantitativeScore : 0,
+      qualitativeScore:
+        item.qualitativeScore === null || typeof item.qualitativeScore === 'number'
+          ? item.qualitativeScore
+          : null,
+      qualitativeNote:
+        item.qualitativeNote === undefined || item.qualitativeNote === null
+          ? null
+          : typeof item.qualitativeNote === 'string'
+            ? item.qualitativeNote
+            : null,
+      totalScore: typeof item.totalScore === 'number' ? item.totalScore : 0,
+      evidenceCount: typeof item.evidenceCount === 'number' ? item.evidenceCount : 0,
+      sheetCompletion: typeof item.sheetCompletion === 'number' ? item.sheetCompletion : 0,
+    }));
+};
+
 const calculateIndicatorQuantitative = async (prodiId: string) => {
   const latestLKPS = await prisma.documentLKPS.findFirst({
     where: { prodiId },
@@ -124,7 +150,7 @@ const mergeManualQualitative = (
     const qualitativeScore = manual?.qualitativeScore ?? null;
     const qualitativeNote = manual?.qualitativeNote ?? null;
     const totalScore = qualitativeScore !== null
-      ? Math.round(item.quantitativeScore * 0.6 + qualitativeScore * 0.4)
+      ? Math.round(item.quantitativeScore * 0.7 + qualitativeScore * 0.3)
       : item.quantitativeScore;
 
     return {
@@ -155,21 +181,22 @@ export const getSimulationByProdi = async (prodiId: string) => {
 
   const autoSimulation = await calculateIndicatorQuantitative(prodiId);
   const existing = await prisma.accreditationSimulation.findUnique({ where: { prodiId } });
+  const savedIndicators = parseSavedIndicators(existing?.indicators);
 
-  const indicators = mergeManualQualitative(autoSimulation.indicators, (existing?.indicators as any) ?? []);
+  const indicators = mergeManualQualitative(autoSimulation.indicators, savedIndicators);
   const summary = buildSimulationSummary(indicators);
 
   const result = await prisma.accreditationSimulation.upsert({
     where: { prodiId },
     update: {
-      indicators: indicators as any,
+      indicators: indicators as unknown as Prisma.JsonArray,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
     },
     create: {
       prodiId,
-      indicators: indicators as any,
+      indicators: indicators as unknown as Prisma.JsonArray,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
@@ -188,18 +215,31 @@ export const getSimulationByProdi = async (prodiId: string) => {
 
 export const updateSimulationQualitative = async (
   prodiId: string,
-  qualitativeScores: Array<{ code: string; qualitativeScore: number; qualitativeNote?: string | null }>
+  qualitativeScores: Array<{ code: string; qualitativeScore?: number | null; qualitativeNote?: string | null }>
 ) => {
   const prodi = await prisma.prodi.findUnique({ where: { id: prodiId } });
   if (!prodi) throw new Error('Program studi tidak ditemukan');
 
+  const existing = await prisma.accreditationSimulation.findUnique({ where: { prodiId } });
+  const savedIndicators = parseSavedIndicators(existing?.indicators);
+  
   const autoSimulation = await calculateIndicatorQuantitative(prodiId);
   const mergedIndicators = autoSimulation.indicators.map((indicator) => {
-    const manual = qualitativeScores.find((item) => item.code === indicator.code);
-    const qualitativeScore = manual?.qualitativeScore ?? null;
-    const qualitativeNote = manual?.qualitativeNote ?? null;
+    // Find update for this indicator
+    const update = qualitativeScores.find((item) => item.code === indicator.code);
+    // Find existing qualitative data
+    const existingData = savedIndicators.find((item) => item.code === indicator.code);
+    
+    // Use update value if provided, otherwise keep existing, otherwise null
+    const qualitativeScore = update?.qualitativeScore !== undefined 
+      ? update.qualitativeScore
+      : existingData?.qualitativeScore ?? null;
+    const qualitativeNote = update?.qualitativeNote !== undefined
+      ? update.qualitativeNote
+      : existingData?.qualitativeNote ?? null;
+    
     const totalScore = qualitativeScore !== null
-      ? Math.round(indicator.quantitativeScore * 0.6 + qualitativeScore * 0.4)
+      ? Math.round(indicator.quantitativeScore * 0.5 + qualitativeScore * 0.5)
       : indicator.quantitativeScore;
 
     return {
@@ -215,14 +255,14 @@ export const updateSimulationQualitative = async (
   const result = await prisma.accreditationSimulation.upsert({
     where: { prodiId },
     update: {
-      indicators: mergedIndicators as any,
+      indicators: mergedIndicators as unknown as Prisma.JsonArray,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
     },
     create: {
       prodiId,
-      indicators: mergedIndicators as any,
+      indicators: mergedIndicators as unknown as Prisma.JsonArray,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
