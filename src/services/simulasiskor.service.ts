@@ -151,7 +151,7 @@ const mergeManualQualitative = (
     const qualitativeScore = manual?.qualitativeScore ?? null;
     const qualitativeNote = manual?.qualitativeNote ?? null;
     const totalScore = qualitativeScore !== null
-      ? Math.round(item.quantitativeScore * 0.6 + qualitativeScore * 0.4)
+      ? Math.round(item.quantitativeScore * 0.7 + qualitativeScore * 0.3)
       : item.quantitativeScore;
 
     return {
@@ -216,18 +216,31 @@ export const getSimulationByProdi = async (prodiId: string) => {
 
 export const updateSimulationQualitative = async (
   prodiId: string,
-  qualitativeScores: Array<{ code: string; qualitativeScore: number; qualitativeNote?: string | null }>
+  qualitativeScores: Array<{ code: string; qualitativeScore?: number | null; qualitativeNote?: string | null }>
 ) => {
   const prodi = await prisma.prodi.findUnique({ where: { id: prodiId } });
   if (!prodi) throw new Error('Program studi tidak ditemukan');
 
+  const existing = await prisma.accreditationSimulation.findUnique({ where: { prodiId } });
+  const savedIndicators = parseSavedIndicators(existing?.indicators);
+  
   const autoSimulation = await calculateIndicatorQuantitative(prodiId);
   const mergedIndicators = autoSimulation.indicators.map((indicator) => {
-    const manual = qualitativeScores.find((item) => item.code === indicator.code);
-    const qualitativeScore = manual?.qualitativeScore ?? null;
-    const qualitativeNote = manual?.qualitativeNote ?? null;
+    // Find update for this indicator
+    const update = qualitativeScores.find((item) => item.code === indicator.code);
+    // Find existing qualitative data
+    const existingData = savedIndicators.find((item) => item.code === indicator.code);
+    
+    // Use update value if provided, otherwise keep existing, otherwise null
+    const qualitativeScore = update?.qualitativeScore !== undefined 
+      ? update.qualitativeScore
+      : existingData?.qualitativeScore ?? null;
+    const qualitativeNote = update?.qualitativeNote !== undefined
+      ? update.qualitativeNote
+      : existingData?.qualitativeNote ?? null;
+    
     const totalScore = qualitativeScore !== null
-      ? Math.round(indicator.quantitativeScore * 0.6 + qualitativeScore * 0.4)
+      ? Math.round(indicator.quantitativeScore * 0.5 + qualitativeScore * 0.5)
       : indicator.quantitativeScore;
 
     return {
