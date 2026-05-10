@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import prisma from '../config/database.config';
 import { LKPS_KRITERIA } from '../config/lkps.config';
 
