@@ -39,6 +39,7 @@ model User {
   dokumenEviden DokumenEviden[]
   ledForms      LedForm[]
   prodi         Prodi?             @relation(fields: [prodiId], references: [id])
+  dataInstitusi DataInstitusi[]
 }
 
 model ProdiAssignment {
@@ -88,31 +89,46 @@ model DocumentLKPS {
 }
 
 model LKPSCriteria {
-  id              String          @id @default(uuid())
-  documentId      String    
-  document        DocumentLKPS    @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  criteriaCode    String        
-  criteriaName    String        
-  subCriteriaCode String?
-  subCriteriaName String?       
-  sheets          LKPSSheetData[]
-  isCompleted     Boolean         @default(false)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id String @id @default(uuid())
+
+  // Relation to parent document
+  documentId String
+  document   DocumentLKPS @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  criteriaCode String // "1", "2", "3", "4", "5", "6", "7"
+  criteriaName String // "Visi Misi Tujuan", "Tata Pamong", dst
+
+  subCriteriaCode String? // "2a", "2b", "3a", "3b", dst
+  subCriteriaName String? //  "Kerjasama Pendidikan", "Penelitian", dst
+
+  // Relation to sheets
+  sheets LKPSSheetData[]
+
+  // Tracking
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([documentId, criteriaCode, subCriteriaCode])
 }
 
 model LKPSSheetData {
-  id              String        @id @default(uuid())
-  criteriaId      String        
-  criteria        LKPSCriteria  @relation(fields: [criteriaId], references: [id], onDelete: Cascade)
-  sheetName       String        
-  sheetTitle      String?
-  data            Json          
-  isCompleted     Boolean       @default(false)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id String @id @default(uuid())
+
+  // Relation to parent criteria
+  criteriaId String
+  criteria   LKPSCriteria @relation(fields: [criteriaId], references: [id], onDelete: Cascade)
+
+  // Sheet identification
+  sheetName  String // "1", "2a1", "2a2", "3a1", "3a2", "3b", dst
+  sheetTitle String? // "Visi Misi", "Kurikulum RPS", dst (optional descriptive)
+
+  data Json // Ini biar fleksible karena tiap sheet columnnya beda-beda
+
+  // Tracking
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([criteriaId, sheetName])
 }
@@ -158,20 +174,32 @@ model LedForm {
 }
 
 model DocumentTemplate {
-  id           String       @id @default(uuid())
-  name         String       
-  type         TemplateType 
-  category     LamCategory  
-  content      String       
-  uploadedById String
-  uploader     User         @relation(fields: [uploadedById], references: [id])
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id       String       @id @default(uuid())
+  name     String // Contoh: "Template LKPS LAM Teknik 2026"
+  type     TemplateType // LKPS atau LED
+  category LamCategory // INFOKOM atau TEKNIK
+  content  String // Path file fisik dari Storage Provider
 
-  @@unique([type, category]) 
+  uploadedById String
+  uploader     User   @relation(fields: [uploadedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([type, category])
 }
 
 model DokumenEviden {
+  id        String   @id @default(uuid())
+  prodiId   String
+  judul     String
+  deskripsi String?  @db.Text
+  indikator String[] @default([])
+  periode   String?
+
+  uploaderId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
   id          String         @id @default(uuid())
   prodiId     String
   judul       String
@@ -186,15 +214,42 @@ model DokumenEviden {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
+  prodi    Prodi        @relation(fields: [prodiId], references: [id])
+  uploader User         @relation(fields: [uploaderId], references: [id])
+  files    EvidenFile[]
   prodi       Prodi        @relation(fields: [prodiId], references: [id])
   uploader    User         @relation(fields: [uploaderId], references: [id])
   files       EvidenFile[]
 }
 
 model EvidenFile {
-  id               String         @id @default(uuid())
+  id               String @id @default(uuid())
   evidenId         String
   originalFilename String
+  savedFilename    String // Nama file fisik di storage
+  mimeType         String // Untuk icon di frontend (misal: application/pdf)
+  size             Int // Dalam bytes
+
+  createdAt DateTime @default(now())
+
+  // Relasi
+  eviden DokumenEviden @relation(fields: [evidenId], references: [id], onDelete: Cascade) // Jika Eviden dihapus, file juga terhapus
+}
+
+model DataInstitusi {
+  id        String @id @default(uuid())
+  periode   String // Contoh: "2025/2026"
+  sheetName String // Kode sheet LKPS, contoh: "2b"
+  data      Json // Menyimpan array of objects data UPPS
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Mencegah duplikasi data untuk sheet dan periode yang sama
+  @@unique([periode, sheetName])
   savedFilename    String         
   mimeType         String         
   size             Int            
