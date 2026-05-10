@@ -1,5 +1,6 @@
 import prisma from '../config/database.config';
-import { LKPS_KRITERIA } from '@/config/lkps.config';
+import { Prisma } from '@prisma/client';
+import { LKPS_KRITERIA } from '../config/lkps.config';
 
 export interface SimulationIndicator {
   code: string;
@@ -19,9 +20,35 @@ const normalizeIndicatorText = (value: unknown): string => {
 
 const buildIndicatorTemplate = () =>
   Object.entries(LKPS_KRITERIA).map(([criteriaCode, criteriaInfo]) => ({
-    code: C.{criteriaCode},
+    code: `C.${criteriaCode}`,
     name: criteriaInfo.name,
   }));
+
+const parseSavedIndicators = (value: unknown): Array<Partial<SimulationIndicator>> => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Partial<SimulationIndicator> =>
+      item !== null && typeof item === 'object' && 'code' in item && typeof (item as any).code === 'string'
+    )
+    .map((item) => ({
+      code: typeof item.code === 'string' ? item.code : '',
+      name: typeof item.name === 'string' ? item.name : '',
+      quantitativeScore: typeof item.quantitativeScore === 'number' ? item.quantitativeScore : 0,
+      qualitativeScore:
+        item.qualitativeScore === null || typeof item.qualitativeScore === 'number'
+          ? item.qualitativeScore
+          : null,
+      qualitativeNote:
+        item.qualitativeNote === undefined || item.qualitativeNote === null
+          ? null
+          : typeof item.qualitativeNote === 'string'
+            ? item.qualitativeNote
+            : null,
+      totalScore: typeof item.totalScore === 'number' ? item.totalScore : 0,
+      evidenceCount: typeof item.evidenceCount === 'number' ? item.evidenceCount : 0,
+      sheetCompletion: typeof item.sheetCompletion === 'number' ? item.sheetCompletion : 0,
+    }));
+};
 
 const calculateIndicatorQuantitative = async (prodiId: string) => {
   const latestLKPS = await prisma.documentLKPS.findFirst({
@@ -155,21 +182,22 @@ export const getSimulationByProdi = async (prodiId: string) => {
 
   const autoSimulation = await calculateIndicatorQuantitative(prodiId);
   const existing = await prisma.accreditationSimulation.findUnique({ where: { prodiId } });
+  const savedIndicators = parseSavedIndicators(existing?.indicators);
 
-  const indicators = mergeManualQualitative(autoSimulation.indicators, existing?.indicators ?? []);
+  const indicators = mergeManualQualitative(autoSimulation.indicators, savedIndicators);
   const summary = buildSimulationSummary(indicators);
 
   const result = await prisma.accreditationSimulation.upsert({
     where: { prodiId },
     update: {
-      indicators,
+      indicators: indicators as unknown as Prisma.JsonArray,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
     },
     create: {
       prodiId,
-      indicators,
+      indicators: indicators as unknown as Prisma.JsonArray,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
@@ -215,14 +243,14 @@ export const updateSimulationQualitative = async (
   const result = await prisma.accreditationSimulation.upsert({
     where: { prodiId },
     update: {
-      indicators: mergedIndicators,
+      indicators: mergedIndicators as unknown as Prisma.JsonArray,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
     },
     create: {
       prodiId,
-      indicators: mergedIndicators,
+      indicators: mergedIndicators as unknown as Prisma.JsonArray,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
