@@ -233,8 +233,6 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
     },
   };
 
-  const simulationScore = 0;
-
   const latestLEDForm = await (prisma as any).ledForm.findFirst({
     where: { prodiId },
     orderBy: { createdAt: 'desc' },
@@ -281,6 +279,9 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
     .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
     .slice(0, 4)
     .map(a => ({ ...a, timestamp: a.timestamp.toISOString() }));
+
+  const simulationRecord = await prisma.accreditationSimulation.findUnique({ where: { prodiId } });
+  const simulationScore = simulationRecord?.totalScore ?? 0;
 
   const rawContent = latestLEDForm?.content ?? null;
   const formContent: Record<string, string> = rawContent

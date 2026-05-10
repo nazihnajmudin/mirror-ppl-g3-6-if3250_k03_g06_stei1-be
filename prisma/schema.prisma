@@ -21,6 +21,8 @@ model Prodi {
   users         User[]
   dokumenEviden DokumenEviden[]
   ledForms      LedForm[]
+  notifications Notification[]
+  simulation    AccreditationSimulation?
 }
 
 model User {
@@ -86,6 +88,19 @@ model DocumentLKPS {
   criterias        LKPSCriteria[]
 
   @@unique([prodiId, periode, versi])
+}
+
+model AccreditationSimulation {
+  id                String        @id @default(uuid())
+  prodiId           String        @unique
+  indicators        Json
+  quantitativeScore Float         @default(0)
+  qualitativeScore  Float         @default(0)
+  totalScore        Float         @default(0)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  prodi             Prodi         @relation(fields: [prodiId], references: [id], onDelete: Cascade)
 }
 
 model LKPSCriteria {
