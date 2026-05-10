@@ -9,7 +9,6 @@ async function main() {
   console.log('Seeding Threshold Configurations...');
   const defaultThresholds = [
     { name: 'accreditation_expiry_warning_days', value: 180 },
-    { name: 'document_inactivity_days', value: 30 },
     { name: 'indicator_passing_grade', value: 25 }, // Stored as integer (2.5 * 10) to avoid float issues in DB if using Int
   ];
 

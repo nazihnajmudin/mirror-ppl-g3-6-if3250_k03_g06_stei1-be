@@ -7,16 +7,12 @@ export const generateEarlyWarnings = async () => {
   console.log('[Notification Service] Generating early warnings...');
   
   const expiryThreshold = await getThresholdValue('accreditation_expiry_warning_days', 180);
-  const inactivityThreshold = await getThresholdValue('document_inactivity_days', 30);
   const passingGradeThresholdRaw = await getThresholdValue('indicator_passing_grade', 25);
   const passingGradeThreshold = passingGradeThresholdRaw / 10; // Convert 25 -> 2.5
   
   const now = new Date();
   const warningDate = new Date();
   warningDate.setDate(now.getDate() + expiryThreshold);
-
-  const inactivityDate = new Date();
-  inactivityDate.setDate(now.getDate() - inactivityThreshold);
 
   const prodis = await prisma.prodi.findMany({
     include: { accreditation: true },
@@ -45,39 +41,7 @@ export const generateEarlyWarnings = async () => {
       }
     }
 
-    // 2. Check Document Inactivity (LKPS)
-    const latestLKPS = await prisma.documentLKPS.findFirst({
-      where: { prodiId: prodi.id },
-      orderBy: { updatedAt: 'desc' }
-    });
-
-    if (latestLKPS && latestLKPS.status === 'DRAFT' && latestLKPS.updatedAt < inactivityDate) {
-      await createNotificationIfNotExists({
-        prodiId: prodi.id,
-        title: 'Dokumen LKPS Tidak Aktif',
-        message: `Dokumen LKPS prodi ${prodi.fullname} belum diperbarui selama lebih dari ${inactivityThreshold} hari.`,
-        type: 'INFO',
-        targetUrl: `/dashboard/lkps/${prodi.id}`,
-      });
-    }
-
-    // 3. Check Document Inactivity (LED)
-    const latestLED = await prisma.documentLED.findFirst({
-      where: { prodiId: prodi.id },
-      orderBy: { updatedAt: 'desc' }
-    });
-
-    if (latestLED && latestLED.status === 'DRAFT' && latestLED.updatedAt < inactivityDate) {
-      await createNotificationIfNotExists({
-        prodiId: prodi.id,
-        title: 'Dokumen LED Tidak Aktif',
-        message: `Dokumen LED prodi ${prodi.fullname} belum diperbarui selama lebih dari ${inactivityThreshold} hari.`,
-        type: 'INFO',
-        targetUrl: `/led`,
-      });
-    }
-
-    // 4. Check Indicator Scores (Low Achievement Warning)
+    // 2. Check Indicator Scores (Low Achievement Warning)
     try {
       const simulation = await getSimulationByProdi(prodi.id);
       for (const indicator of simulation.indicators) {
