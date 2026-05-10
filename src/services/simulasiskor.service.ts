@@ -1,5 +1,4 @@
 import prisma from '../config/database.config';
-import { Prisma } from '@prisma/client';
 import { LKPS_KRITERIA } from '../config/lkps.config';
 
 export interface SimulationIndicator {
@@ -184,20 +183,20 @@ export const getSimulationByProdi = async (prodiId: string) => {
   const existing = await prisma.accreditationSimulation.findUnique({ where: { prodiId } });
   const savedIndicators = parseSavedIndicators(existing?.indicators);
 
-  const indicators = mergeManualQualitative(autoSimulation.indicators, savedIndicators);
+  const indicators = mergeManualQualitative(autoSimulation.indicators, (existing?.indicators as any) ?? []);
   const summary = buildSimulationSummary(indicators);
 
   const result = await prisma.accreditationSimulation.upsert({
     where: { prodiId },
     update: {
-      indicators: indicators as unknown as Prisma.JsonArray,
+      indicators: indicators as any,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
     },
     create: {
       prodiId,
-      indicators: indicators as unknown as Prisma.JsonArray,
+      indicators: indicators as any,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
@@ -256,14 +255,14 @@ export const updateSimulationQualitative = async (
   const result = await prisma.accreditationSimulation.upsert({
     where: { prodiId },
     update: {
-      indicators: mergedIndicators as unknown as Prisma.JsonArray,
+      indicators: mergedIndicators as any,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
     },
     create: {
       prodiId,
-      indicators: mergedIndicators as unknown as Prisma.JsonArray,
+      indicators: mergedIndicators as any,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,

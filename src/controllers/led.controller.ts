@@ -431,3 +431,80 @@ export const softDeleteAllDraftsHandler = async (req: Request, res: Response) =>
         errorResponse(res, err.message, 400);
     }
 };
+
+export const uploadLEDImageHandler = async (req: Request, res: Response): Promise<void> => {
+    try {
+        if (!req.user?.userId) {
+            errorResponse(res, 'Pengguna tidak terautentikasi', 401);
+            return;
+        }
+        if (!req.file) {
+            errorResponse(res, 'File gambar wajib diunggah', 400);
+            return;
+        }
+        const port = process.env.PORT || '8000';
+        const backendUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
+        const relativePath = `/uploads/led/${req.file.filename}`;
+        const imageUrl = `${backendUrl}${relativePath}`;
+        successResponse(res, { url: imageUrl, path: relativePath }, 'Gambar berhasil diunggah', 201);
+    } catch (err: any) {
+        errorResponse(res, err.message, 500);
+    }
+};
+
+export const toggleDocumentLEDStatusHandler = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = String(req.params.id);
+        const { status } = req.body;
+        const user = req.user as any;
+
+        const { dokumen } = await ledService.exportLEDById(id);
+        if (user.role === 'KAPRODI' && dokumen.prodiId !== user.prodiId) {
+            errorResponse(res, 'Akses ditolak: Anda hanya dapat mengunci dokumen prodi Anda sendiri', 403);
+            return;
+        }
+
+        const updated = await ledService.toggleDocumentLEDStatus(id, status, user.userId);
+        successResponse(res, updated, `Dokumen LED berhasil diubah menjadi ${status}`);
+    } catch (err: any) {
+        errorResponse(res, err.message, 500);
+    }
+};
+
+export const toggleLEDFormStatusHandler = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = String(req.params.id);
+        const { status } = req.body;
+        const user = req.user as any;
+
+        const version = await ledService.getLEDFormVersionById(id);
+        if (!version) {
+            errorResponse(res, 'Form LED tidak ditemukan', 404);
+            return;
+        }
+
+        if (user.role === 'KAPRODI' && version.prodiId !== user.prodiId) {
+            errorResponse(res, 'Akses ditolak: Anda hanya dapat mengunci form prodi Anda sendiri', 403);
+            return;
+        }
+
+        const updated = await ledService.toggleLedFormStatus(id, status, user.userId);
+        successResponse(res, updated, `Form LED berhasil diubah menjadi ${status}`);
+    } catch (err: any) {
+        errorResponse(res, err.message, 500);
+    }
+};
+
+export const updateLEDFormHandler = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = String(req.params.id);
+        const { content } = req.body;
+        
+        // Memanggil service untuk update konten
+        const updatedForm = await ledService.updateLEDFormVersion(id, content);
+        
+        successResponse(res, updatedForm, 'Form LED berhasil diperbarui (autosave)');
+    } catch (err: any) {
+        errorResponse(res, err.message, 500);
+    }
+};

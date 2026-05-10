@@ -290,3 +290,48 @@ export const updateDashboardByProdiHandler = async (req: Request, res: Response)
     errorResponse(res, message, code);
   }
 };
+
+export const uploadCertificateHandler = async (req: Request, res: Response): Promise<void> => {
+  const prodiId = req.params.id as string;
+  const file = req.file;
+
+  if (!file) {
+    errorResponse(res, 'File sertifikat tidak ditemukan dalam request', 400);
+    return;
+  }
+
+  try {
+    const accreditation = await prodiService.uploadAccreditationCertificate(prodiId, file);
+    successResponse(res, accreditation, 'Sertifikat akreditasi berhasil diunggah');
+  } catch (err: any) {
+    const message = err.message;
+    const code = message.includes('tidak ditemukan') ? 404 : 500;
+    errorResponse(res, message, code);
+  }
+};
+
+export const getCertificateFileHandler = async (req: Request, res: Response): Promise<void> => {
+  const prodiId = req.params.id as string;
+
+  try {
+    const accreditation = await prodiService.getAccreditation(prodiId);
+    if (!accreditation?.certificateUrl) {
+      errorResponse(res, 'Sertifikat tidak tersedia untuk prodi ini', 404);
+      return;
+    }
+
+    if (accreditation.certificateUrl.startsWith('http')) {
+      res.redirect(accreditation.certificateUrl);
+      return;
+    }
+
+    const { storageProvider } = await import('../utils/storage');
+    const filePath = storageProvider.getFilePath(accreditation.certificateUrl, 'accreditation');
+    const originalName = accreditation.certificateOriginalName ?? 'sertifikat';
+    res.download(filePath, originalName);
+  } catch (err: any) {
+    const message = err.message;
+    const code = message.includes('tidak ditemukan') ? 404 : 500;
+    errorResponse(res, message, code);
+  }
+};

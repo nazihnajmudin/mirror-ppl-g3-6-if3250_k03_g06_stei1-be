@@ -16,8 +16,10 @@ import {
   autoSaveLKPSSheetHandler,
   saveLKPSDocumentAsDraftHandler,
   finalizeLKPSDocumentHandler,
+  toggleLKPSStatusHandler,
 } from '../controllers/lkps.controller';
-import { authenticate } from '../middlewares/auth.middleware';
+import { authenticate, requireRole } from '../middlewares/auth.middleware';
+import { Role } from '@prisma/client';
 
 const router = Router();
 
@@ -49,6 +51,7 @@ router.post('/sheet/:criteriaId/:sheetName/complete', completeSheetHandler);
 // 3. Document-level operations (save draft, finalize)
 router.post('/document/:documentId/save-draft', saveLKPSDocumentAsDraftHandler);
 router.post('/document/:documentId/finalize', finalizeLKPSDocumentHandler);
+router.put('/document/status/:id', requireRole(Role.SUPER_ADMIN, Role.KAPRODI), toggleLKPSStatusHandler);
 
 // 4. Get/Update Single Document (Matches UUIDs, prioritized over history/export)
 router.get('/:id', getLKPSDocumentHandler);
