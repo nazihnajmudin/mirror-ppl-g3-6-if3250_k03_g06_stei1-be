@@ -1,6 +1,6 @@
 import prisma from '../config/database.config';
 import { storageProvider } from '../utils/storage';
-import { Role } from '@prisma/client';
+import { Role, DocumentStatus } from '@prisma/client';
 import { getProdiForUser } from './prodi.service';
 
 export const createEviden = async (data: any, files: Express.Multer.File[], userId: string) => {
@@ -61,6 +61,12 @@ export const getEvidenById = async (id: string) => {
 };
 
 export const updateEviden = async (id: string, data: any, newFiles: Express.Multer.File[], deletedFileIds: string[]) => {
+    // 0. CEK LOCKING STATUS
+    const existingEviden = await prisma.dokumenEviden.findUnique({ where: { id } });
+    if (existingEviden?.status === 'FINAL') {
+        throw new Error('Dokumen Eviden telah dikunci (FINAL) dan tidak dapat diubah.');
+    }
+    
     // 1. Hapus file lama yang diminta dihapus oleh user
     if (deletedFileIds && deletedFileIds.length > 0) {
         const filesToDelete = await prisma.evidenFile.findMany({
@@ -115,6 +121,10 @@ export const deleteEviden = async (id: string) => {
 
     if (!eviden) throw new Error('Eviden tidak ditemukan');
 
+    if (eviden.status === 'FINAL') {
+        throw new Error('Dokumen Eviden telah dikunci (FINAL) dan tidak dapat dihapus.');
+    }
+
     // Hapus fisik
     for (const file of eviden.files) {
         await storageProvider.delete(file.savedFilename, 'eviden');
@@ -131,4 +141,18 @@ export const getEvidenFile = async (fileId: string) => {
     
     const filePath = storageProvider.getFilePath(file.savedFilename, 'eviden');
     return { file, filePath };
+};
+
+export const toggleEvidenStatus = async (id: string, targetStatus: DocumentStatus, userId: string) => {
+    if (targetStatus === DocumentStatus.FINAL) {
+        return prisma.dokumenEviden.update({
+            where: { id },
+            data: { status: DocumentStatus.FINAL, lockedAt: new Date(), lockedBy: userId }
+        });
+    } else {
+        return prisma.dokumenEviden.update({
+            where: { id },
+            data: { status: DocumentStatus.DRAFT, lockedAt: null, lockedBy: null }
+        });
+    }
 };

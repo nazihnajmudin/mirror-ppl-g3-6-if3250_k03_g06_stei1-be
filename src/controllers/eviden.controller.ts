@@ -93,3 +93,23 @@ export const downloadFileHandler = async (req: Request, res: Response) => {
         errorResponse(res, err.message, 404);
     }
 };
+
+export const toggleEvidenStatusHandler = async (req: Request, res: Response) => {
+    try {
+        const id = req.params.id as string;
+        const { status } = req.body;
+        const user = req.user as any;
+
+        const dokumen = await evidenService.getEvidenById(id);
+        if (!dokumen) return errorResponse(res, 'Eviden tidak ditemukan', 404);
+
+        if (user.role === 'KAPRODI' && dokumen.prodiId !== user.prodiId) {
+            return errorResponse(res, 'Akses ditolak: Anda hanya dapat mengunci eviden prodi Anda sendiri', 403);
+        }
+
+        const updated = await evidenService.toggleEvidenStatus(id, status, user.userId);
+        return successResponse(res, updated, `Eviden berhasil diubah menjadi ${status}`);
+    } catch (err: any) {
+        return errorResponse(res, err.message, 500);
+    }
+};

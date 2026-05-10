@@ -10,7 +10,7 @@ export const upsertAccreditationSchema = z.object({
   grade: z.string().min(1, 'Nilai akreditasi tidak boleh kosong').max(50).optional(),
   startDate: z.string().datetime({ message: 'Format tanggal mulai tidak valid' }).optional(),
   endDate: z.string().datetime({ message: 'Format tanggal akhir tidak valid' }).optional(),
-  certificateUrl: z.string().url('Format URL sertifikat tidak valid').optional(),
+  certificateUrl: z.string().optional(),
 });
 
 export const updateDashboardSchema = z

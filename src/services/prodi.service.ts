@@ -1,6 +1,7 @@
 import prisma from '../config/database.config';
 import { Role } from '@prisma/client';
 import { UpdateProdiInput, UpsertAccreditationInput } from '../validators/prodi.validator';
+import { storageProvider } from '../utils/storage';
 
 export interface DashboardData {
   prodi: {
@@ -159,6 +160,32 @@ export const upsertAccreditation = async (prodiId: string, data: UpsertAccredita
   });
 };
 
+export const uploadAccreditationCertificate = async (prodiId: string, file: Express.Multer.File) => {
+  const prodi = await prisma.prodi.findUnique({ where: { id: prodiId } });
+  if (!prodi) throw new Error('Program studi tidak ditemukan');
+
+  const existing = await prisma.accreditationInfo.findUnique({ where: { prodiId } });
+
+  if (existing?.certificateUrl && !existing.certificateUrl.startsWith('http')) {
+    try { await storageProvider.delete(existing.certificateUrl, 'accreditation'); } catch (_) {}
+  }
+
+  const savedFileName = await storageProvider.upload(file, 'accreditation');
+
+  return prisma.accreditationInfo.upsert({
+    where: { prodiId },
+    update: {
+      certificateUrl: savedFileName,
+      certificateOriginalName: file.originalname,
+    },
+    create: {
+      prodiId,
+      certificateUrl: savedFileName,
+      certificateOriginalName: file.originalname,
+    },
+  });
+};
+
 export const getDashboardByProdi = async (prodiId: string): Promise<DashboardData> => {
   const prodi = await prisma.prodi.findUnique({
     where: { id: prodiId },
@@ -206,8 +233,6 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
     },
   };
 
-  const simulationScore = 0;
-
   const latestLEDForm = await (prisma as any).ledForm.findFirst({
     where: { prodiId },
     orderBy: { createdAt: 'desc' },
@@ -254,6 +279,9 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
     .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
     .slice(0, 4)
     .map(a => ({ ...a, timestamp: a.timestamp.toISOString() }));
+
+  const simulationRecord = await prisma.accreditationSimulation.findUnique({ where: { prodiId } });
+  const simulationScore = simulationRecord?.totalScore ?? 0;
 
   const rawContent = latestLEDForm?.content ?? null;
   const formContent: Record<string, string> = rawContent

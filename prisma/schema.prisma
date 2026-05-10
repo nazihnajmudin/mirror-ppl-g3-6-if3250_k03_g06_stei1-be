@@ -21,32 +21,35 @@ model Prodi {
   users         User[]
   dokumenEviden DokumenEviden[]
   ledForms      LedForm[]
+  notifications Notification[]
+  simulation    AccreditationSimulation?
 }
 
 model User {
-  id          String            @id @default(uuid())
-  email       String            @unique
-  name        String
-  password    String
-  role        Role
-  isActive    Boolean           @default(true)
-  prodiId     String?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  documentLED DocumentLED[]
-  assignments ProdiAssignment[]
-  templates   DocumentTemplate[]
+  id            String             @id @default(uuid())
+  email         String             @unique
+  name          String
+  password      String
+  role          Role
+  isActive      Boolean            @default(true)
+  prodiId       String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  documentLED   DocumentLED[]
+  assignments   ProdiAssignment[]
+  templates     DocumentTemplate[]
   dokumenEviden DokumenEviden[]
-  ledForms    LedForm[]
-  prodi       Prodi?            @relation(fields: [prodiId], references: [id])
+  ledForms      LedForm[]
+  prodi         Prodi?             @relation(fields: [prodiId], references: [id])
+  dataInstitusi DataInstitusi[]
 }
 
 model ProdiAssignment {
   id        String   @id @default(uuid())
   userId    String
   prodiId   String
-  createdAt DateTime @default(now())
   kriteria  String[] @default([])
+  createdAt DateTime @default(now())
   prodi     Prodi    @relation(fields: [prodiId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
 
@@ -54,15 +57,16 @@ model ProdiAssignment {
 }
 
 model AccreditationInfo {
-  id             String    @id @default(uuid())
-  prodiId        String    @unique
-  grade          String?
-  startDate      DateTime?
-  endDate        DateTime?
-  certificateUrl String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  prodi          Prodi     @relation(fields: [prodiId], references: [id])
+  id                      String    @id @default(uuid())
+  prodiId                 String    @unique
+  grade                   String?
+  startDate               DateTime?
+  endDate                 DateTime?
+  certificateUrl          String?
+  certificateOriginalName String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  prodi                   Prodi     @relation(fields: [prodiId], references: [id])
 }
 
 model DocumentLKPS {
@@ -78,51 +82,68 @@ model DocumentLKPS {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   periode          String?
+  versi            Int            @default(1)
+  
   prodi            Prodi          @relation(fields: [prodiId], references: [id])
   criterias        LKPSCriteria[]
+
+  @@unique([prodiId, periode, versi])
+}
+
+model AccreditationSimulation {
+  id                String        @id @default(uuid())
+  prodiId           String        @unique
+  indicators        Json
+  quantitativeScore Float         @default(0)
+  qualitativeScore  Float         @default(0)
+  totalScore        Float         @default(0)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  prodi             Prodi         @relation(fields: [prodiId], references: [id], onDelete: Cascade)
 }
 
 model LKPSCriteria {
-  id              String        @id @default(uuid())
+  id String @id @default(uuid())
 
   // Relation to parent document
-  documentId      String    
-  document        DocumentLKPS  @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  
-  criteriaCode    String        // "1", "2", "3", "4", "5", "6", "7"
-  criteriaName    String        // "Visi Misi Tujuan", "Tata Pamong", dst
+  documentId String
+  document   DocumentLKPS @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
-  subCriteriaCode String?       // "2a", "2b", "3a", "3b", dst
-  subCriteriaName String?       //  "Kerjasama Pendidikan", "Penelitian", dst
+  criteriaCode String // "1", "2", "3", "4", "5", "6", "7"
+  criteriaName String // "Visi Misi Tujuan", "Tata Pamong", dst
+
+  subCriteriaCode String? // "2a", "2b", "3a", "3b", dst
+  subCriteriaName String? //  "Kerjasama Pendidikan", "Penelitian", dst
 
   // Relation to sheets
-  sheets          LKPSSheetData[]
+  sheets LKPSSheetData[]
 
   // Tracking
-  isCompleted     Boolean       @default(false)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([documentId, criteriaCode, subCriteriaCode])
 }
 
 model LKPSSheetData {
-  id              String        @id @default(uuid())
+  id String @id @default(uuid())
 
   // Relation to parent criteria
-  criteriaId      String        
-  criteria        LKPSCriteria  @relation(fields: [criteriaId], references: [id], onDelete: Cascade)
+  criteriaId String
+  criteria   LKPSCriteria @relation(fields: [criteriaId], references: [id], onDelete: Cascade)
 
   // Sheet identification
-  sheetName       String        // "1", "2a1", "2a2", "3a1", "3a2", "3b", dst
-  sheetTitle      String?       // "Visi Misi", "Kurikulum RPS", dst (optional descriptive)
+  sheetName  String // "1", "2a1", "2a2", "3a1", "3a2", "3b", dst
+  sheetTitle String? // "Visi Misi", "Kurikulum RPS", dst (optional descriptive)
 
-  data            Json          // Ini biar fleksible karena tiap sheet columnnya beda-beda
+  data Json // Ini biar fleksible karena tiap sheet columnnya beda-beda
 
   // Tracking
-  isCompleted     Boolean       @default(false)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([criteriaId, sheetName])
 }
@@ -149,62 +170,107 @@ model DocumentLED {
 }
 
 model LedForm {
-  id          String   @id @default(uuid())
+  id          String         @id @default(uuid())
   prodiId     String
   template    Template
   periode     String
+  versi       Int            @default(1)
+  status      DocumentStatus @default(DRAFT)
   content     Json
+  lockedAt    DateTime?
+  lockedBy    String?
   createdById String
-  createdAt   DateTime @default(now())
+  createdAt   DateTime       @default(now())
+  
   prodi       Prodi    @relation(fields: [prodiId], references: [id])
   createdBy   User     @relation(fields: [createdById], references: [id])
+
+  @@unique([prodiId, periode, template, versi])
 }
 
 model DocumentTemplate {
-  id          String       @id @default(uuid())
-  name        String       // Contoh: "Template LKPS LAM Teknik 2026"
-  type        TemplateType // LKPS atau LED
-  category    LamCategory  // INFOKOM atau TEKNIK
-  content     String       // Path file fisik dari Storage Provider
-  
-  uploadedById String
-  uploader     User        @relation(fields: [uploadedById], references: [id])
-  
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id       String       @id @default(uuid())
+  name     String // Contoh: "Template LKPS LAM Teknik 2026"
+  type     TemplateType // LKPS atau LED
+  category LamCategory // INFOKOM atau TEKNIK
+  content  String // Path file fisik dari Storage Provider
 
-  @@unique([type, category]) 
+  uploadedById String
+  uploader     User   @relation(fields: [uploadedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([type, category])
 }
 
 model DokumenEviden {
-  id          String   @id @default(uuid())
-  prodiId     String
-  judul       String
-  deskripsi   String?  @db.Text
-  indikator   String[] @default([]) 
-  periode     String?
-  
-  uploaderId  String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  prodiId   String
+  judul     String
+  deskripsi String?  @db.Text
+  indikator String[] @default([])
+  periode   String?
+  status      DocumentStatus @default(DRAFT)
+  lockedAt    DateTime?
+  lockedBy    String?
 
-  prodi       Prodi    @relation(fields: [prodiId], references: [id])
-  uploader    User     @relation(fields: [uploaderId], references: [id])
-  files       EvidenFile[]
+  uploaderId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  prodi    Prodi        @relation(fields: [prodiId], references: [id])
+  uploader User         @relation(fields: [uploaderId], references: [id])
+  files    EvidenFile[]
 }
 
 model EvidenFile {
-  id               String         @id @default(uuid())
+  id               String @id @default(uuid())
   evidenId         String
   originalFilename String
-  savedFilename    String         // Nama file fisik di storage
-  mimeType         String         // Untuk icon di frontend (misal: application/pdf)
-  size             Int            // Dalam bytes
-  
-  createdAt        DateTime       @default(now())
+  savedFilename    String // Nama file fisik di storage
+  mimeType         String // Untuk icon di frontend (misal: application/pdf)
+  size             Int // Dalam bytes
+
+  createdAt DateTime @default(now())
 
   // Relasi
-  eviden           DokumenEviden  @relation(fields: [evidenId], references: [id], onDelete: Cascade) // Jika Eviden dihapus, file juga terhapus
+  eviden DokumenEviden @relation(fields: [evidenId], references: [id], onDelete: Cascade) // Jika Eviden dihapus, file juga terhapus
+}
+
+model DataInstitusi {
+  id        String @id @default(uuid())
+  periode   String // Contoh: "2025/2026"
+  sheetName String // Kode sheet LKPS, contoh: "2b"
+  data      Json // Menyimpan array of objects data UPPS
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Mencegah duplikasi data untuk sheet dan periode yang sama
+  @@unique([periode, sheetName])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  prodiId   String?
+  title     String
+  message   String
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  targetUrl String?
+  createdAt DateTime         @default(now())
+  prodi     Prodi?           @relation(fields: [prodiId], references: [id])
+}
+
+model ThresholdConfig {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  value     Int
+  updatedAt DateTime @updatedAt
 }
 
 enum Template {
@@ -232,4 +298,10 @@ enum LamCategory {
 enum TemplateType {
   LKPS
   LED
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  DANGER
 }

@@ -7,6 +7,10 @@ import lkpsRoutes from './lkps.routes';
 import ledRoutes from './led.routes';
 import templateRoutes from './template.routes';
 import evidenRoutes from './eviden.routes';
+import institusiRoutes from './institusi.routes';
+import notificationRoutes from './notification.routes';
+import settingsRoutes from './settings.routes';
+import simulasiskorRoutes from './simulasiskor.routes';
 
 const router = Router();
 
@@ -18,5 +22,9 @@ router.use('/lkps', lkpsRoutes);
 router.use('/led', ledRoutes);
 router.use('/templates', templateRoutes);
 router.use('/eviden', evidenRoutes);
+router.use('/institusi', institusiRoutes);
+router.use('/notifications', notificationRoutes);
+router.use('/settings', settingsRoutes);
+router.use('/simulasi-skor', simulasiskorRoutes);
 
 export default router;

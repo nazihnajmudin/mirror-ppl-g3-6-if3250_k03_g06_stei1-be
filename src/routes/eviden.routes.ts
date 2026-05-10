@@ -5,10 +5,12 @@ import {
     getEvidenByIdHandler, 
     updateEvidenHandler, 
     deleteEvidenHandler, 
-    downloadFileHandler 
+    downloadFileHandler, 
+    toggleEvidenStatusHandler
 } from '../controllers/eviden.controller';
 import { authenticate, requireRole, prodiStaff } from '../middlewares/auth.middleware';
 import { uploadEvidenMiddleware } from '../middlewares/upload.middleware';
+import { Role } from '@prisma/client';
 
 const router = Router();
 
@@ -24,5 +26,7 @@ router.get('/file/download/:fileId', downloadFileHandler);
 router.post('/', prodiStaff, uploadEvidenMiddleware.array('files', 20), createEvidenHandler);
 router.put('/:id', prodiStaff, uploadEvidenMiddleware.array('files', 20), updateEvidenHandler);
 router.delete('/:id', prodiStaff, deleteEvidenHandler);
+
+router.put('/status/:id', requireRole(Role.SUPER_ADMIN, Role.KAPRODI), toggleEvidenStatusHandler);
 
 export default router;
