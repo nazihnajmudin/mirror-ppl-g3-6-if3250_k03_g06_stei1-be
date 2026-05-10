@@ -314,6 +314,10 @@ export const updateLKPSDocumentHandler = async (req: Request, res: Response) => 
       return errorResponse(res, 'Dokumen tidak ditemukan', 404);
     }
 
+    if (document.status === 'FINAL') {
+      return errorResponse(res, 'Dokumen LKPS telah dikunci (FINAL) dan tidak dapat diubah.', 403);
+    }
+
     const updatedDocument = await prisma.documentLKPS.update({
       where: { id },
       data: { content },
@@ -846,14 +850,20 @@ export const saveLKPSDocumentAsDraftHandler = async (req: Request, res: Response
 export const finalizeLKPSDocumentHandler = async (req: Request, res: Response) => {
   try {
     const documentId = req.params.documentId as string;
+    const user = req.user as any; // <-- AMBIL DATA USER
     
     // Verify document exists
     const document = await lkpsService.getLKPSDocumentById(documentId);
     if (!document) {
       return errorResponse(res, 'Dokumen tidak ditemukan', 404);
     }
+
+    // Validasi Akses Kaprodi
+    if (user.role === 'KAPRODI' && document.prodiId !== user.prodiId) {
+      return errorResponse(res, 'Akses ditolak: Anda hanya dapat memfinalisasi dokumen prodi Anda sendiri', 403);
+    }
     
-    // Optional: Check if all sheets are completed (business logic)
+    // Check if all sheets are completed
     const allSheets = document.criterias.flatMap(c => c.sheets);
     const hasData = allSheets.length > 0;
     
@@ -861,11 +871,33 @@ export const finalizeLKPSDocumentHandler = async (req: Request, res: Response) =
       return errorResponse(res, 'Tidak ada data sheet dalam dokumen', 400);
     }
     
-    const updated = await lkpsService.finalizeLKPSDocument(documentId);
+    const updated = await lkpsService.finalizeLKPSDocument(documentId, user.userId); 
     
     return successResponse(res, updated, 'Dokumen LKPS berhasil difinalisasi');
   } catch (error: any) {
     console.error('Error finalizing document:', error);
-    return errorResponse(res, 'Gagal menfinalisasi dokumen', 500);
+    return errorResponse(res, error.message || 'Gagal memfinalisasi dokumen', 500);
+  }
+};
+
+
+export const toggleLKPSStatusHandler = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const { status } = req.body; // 'DRAFT' atau 'FINAL'
+    const user = req.user as any;
+
+    const document = await lkpsService.getLKPSDocumentById(id);
+    if (!document) return errorResponse(res, 'Dokumen tidak ditemukan', 404);
+
+    // Validasi Akses Kaprodi
+    if (user.role === 'KAPRODI' && document.prodiId !== user.prodiId) {
+      return errorResponse(res, 'Akses ditolak: Anda hanya dapat mengunci dokumen prodi Anda sendiri', 403);
+    }
+
+    const updated = await lkpsService.toggleLKPSStatus(id, status, user.userId);
+    return successResponse(res, updated, `Dokumen berhasil diubah menjadi ${status}`);
+  } catch (error: any) {
+    return errorResponse(res, error.message, 500);
   }
 };

@@ -11,12 +11,25 @@ export const createLKPSDocument = async (
   originalFilename?: string,
   periode?: string
 ) => {
+  const latestDoc = await prisma.documentLKPS.findFirst({
+    where: { 
+      prodiId, 
+      periode 
+    },
+    orderBy: { 
+      versi: 'desc' 
+    },
+  });
+
+  const newVersi = latestDoc ? latestDoc.versi + 1 : 1;
+
   return await prisma.documentLKPS.create({
     data: {
       prodiId,
       content,
-      name: name || `LKPS ${periode || new Date().getFullYear()}`,
+      name: name || `LKPS ${periode || new Date().getFullYear()} - Versi ${newVersi}`,
       status: DocumentStatus.DRAFT,
+      versi: newVersi,
       filePath,
       originalFilename,
       periode,
@@ -54,6 +67,19 @@ export const getLKPSDocumentById = async (id: string) => {
       },
     },
   });
+};
+
+/**
+ * Helper: Cek apakah dokumen LKPS dikunci (FINAL)
+ */
+const checkLKPSLock = async (criteriaId: string) => {
+  const criteria = await prisma.lKPSCriteria.findUnique({
+    where: { id: criteriaId },
+    include: { document: true }
+  });
+  if (criteria?.document?.status === 'FINAL') {
+    throw new Error('Dokumen LKPS telah dikunci (FINAL) dan tidak dapat diubah.');
+  }
 };
 
 /**
@@ -280,6 +306,8 @@ export const updateLKPSSheetData = async (
   sheetName: string,
   data: any[]
 ) => {
+  await checkLKPSLock(criteriaId);
+
   const validation = validateSheetData(sheetName, data);
   if (!validation.valid) {
     throw new Error(`Validasi data sheet "${sheetName}" gagal:\n${validation.errors.join('\n')}`);
@@ -303,6 +331,8 @@ export const markSheetCompleted = async (
   criteriaId: string,
   sheetName: string
 ) => {
+  await checkLKPSLock(criteriaId);
+
   return await prisma.lKPSSheetData.update({
     where: {
       criteriaId_sheetName: {
@@ -323,6 +353,8 @@ export const autoSaveLKPSSheetData = async (
   sheetName: string,
   data: any[]
 ) => {
+  await checkLKPSLock(criteriaId);
+
   if (!Array.isArray(data)) {
     throw new Error('Data harus berupa array');
   }
@@ -352,14 +384,62 @@ export const saveLKPSDocumentAsDraft = async (documentId: string) => {
 };
 
 /**
- * Finalize document (submit as final)
+ * Finalize document (Dari Halaman Form)
+ * Menggunakan "One Final Rule" Transaction
  */
-export const finalizeLKPSDocument = async (documentId: string) => {
-  return await prisma.documentLKPS.update({
-    where: { id: documentId },
-    data: {
-      status: 'FINAL',
-      updatedAt: new Date(),
-    },
+export const finalizeLKPSDocument = async (documentId: string, userId: string) => {
+  return await prisma.$transaction(async (tx) => {
+    const targetDoc = await tx.documentLKPS.findUnique({ where: { id: documentId } });
+    if (!targetDoc) throw new Error('Dokumen LKPS tidak ditemukan');
+
+    // 1. Kudeta dokumen FINAL lama menjadi DRAFT di periode yang sama
+    await tx.documentLKPS.updateMany({
+      where: { 
+        prodiId: targetDoc.prodiId, 
+        periode: targetDoc.periode, 
+        status: 'FINAL', 
+        id: { not: documentId } 
+      },
+      data: { status: 'DRAFT', lockedAt: null, lockedBy: null } as any
+    });
+
+    // 2. Jadikan dokumen ini FINAL
+    return await tx.documentLKPS.update({
+      where: { id: documentId },
+      data: {
+        status: 'FINAL',
+        lockedAt: new Date(),
+        lockedBy: userId,
+        updatedAt: new Date(),
+      } as any,
+    });
+  });
+};
+
+export const toggleLKPSStatus = async (id: string, targetStatus: DocumentStatus, userId: string) => {
+  return await prisma.$transaction(async (tx) => {
+    const targetDoc = await tx.documentLKPS.findUnique({ where: { id } });
+    if (!targetDoc) throw new Error('Dokumen LKPS tidak ditemukan');
+
+    if (targetStatus === DocumentStatus.FINAL) {
+      await tx.documentLKPS.updateMany({
+        where: { 
+          prodiId: targetDoc.prodiId, 
+          periode: targetDoc.periode, 
+          status: DocumentStatus.FINAL, 
+          id: { not: id } 
+        },
+        data: { status: DocumentStatus.DRAFT, lockedAt: null, lockedBy: null } as any
+      });
+      return await tx.documentLKPS.update({
+        where: { id },
+        data: { status: DocumentStatus.FINAL, lockedAt: new Date(), lockedBy: userId } as any
+      });
+    } else {
+      return await tx.documentLKPS.update({
+        where: { id },
+        data: { status: DocumentStatus.DRAFT, lockedAt: null, lockedBy: null } as any
+      });
+    }
   });
 };

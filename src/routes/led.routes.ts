@@ -12,6 +12,9 @@ import {
   getLEDFormVersionHandler,
   exportLEDFormHandler,
   uploadLEDImageHandler,
+  toggleDocumentLEDStatusHandler,
+  toggleLEDFormStatusHandler,
+  updateLEDFormHandler,
 } from '../controllers/led.controller';
 import { authenticate, requireRole } from '../middlewares/auth.middleware';
 import { uploadLEDMiddleware, uploadLEDImageMiddleware } from '../middlewares/upload.middleware';
@@ -99,6 +102,23 @@ router.post(
     requireRole(Role.KAPRODI, Role.TIM_PRODI),
     uploadLEDImageMiddleware.single('image'),
     uploadLEDImageHandler
+);
+
+router.put(
+    '/document/status/:id', 
+    requireRole(Role.SUPER_ADMIN, Role.KAPRODI), 
+    toggleDocumentLEDStatusHandler
+);
+router.put(
+    '/form/status/:id', 
+    requireRole(Role.SUPER_ADMIN, Role.KAPRODI), 
+    toggleLEDFormStatusHandler
+);
+
+router.put(
+    '/form/version/:id',
+    requireRole(Role.KAPRODI, Role.TIM_PRODI),
+    updateLEDFormHandler
 );
 
 export default router;
