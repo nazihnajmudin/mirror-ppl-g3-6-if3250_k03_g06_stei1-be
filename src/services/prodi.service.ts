@@ -142,6 +142,14 @@ export const upsertAccreditation = async (prodiId: string, data: UpsertAccredita
   const prodi = await prisma.prodi.findUnique({ where: { id: prodiId } });
   if (!prodi) throw new Error('Program studi tidak ditemukan');
 
+  const existing = await prisma.accreditationInfo.findUnique({ where: { prodiId } });
+  const finalStartDate = data.startDate !== undefined ? (data.startDate ? new Date(data.startDate) : null) : existing?.startDate;
+  const finalEndDate = data.endDate !== undefined ? (data.endDate ? new Date(data.endDate) : null) : existing?.endDate;
+
+  if (finalStartDate && finalEndDate && finalStartDate > finalEndDate) {
+    throw new Error('Tanggal mulai berlaku tidak boleh melebihi tanggal berakhir');
+  }
+
   return prisma.accreditationInfo.upsert({
     where: { prodiId },
     update: {
@@ -441,6 +449,13 @@ export const updateDashboardByProdi = async (
     const existingAccreditation = await prisma.accreditationInfo.findFirst({
       where: { prodiId },
     });
+
+    const finalStartDate = data.accreditationInfo.startDate !== undefined ? (data.accreditationInfo.startDate ? new Date(data.accreditationInfo.startDate) : null) : existingAccreditation?.startDate;
+    const finalEndDate = data.accreditationInfo.endDate !== undefined ? (data.accreditationInfo.endDate ? new Date(data.accreditationInfo.endDate) : null) : existingAccreditation?.endDate;
+
+    if (finalStartDate && finalEndDate && finalStartDate > finalEndDate) {
+      throw new Error('Tanggal mulai berlaku tidak boleh melebihi tanggal berakhir');
+    }
 
     if (existingAccreditation) {
       await prisma.accreditationInfo.update({
