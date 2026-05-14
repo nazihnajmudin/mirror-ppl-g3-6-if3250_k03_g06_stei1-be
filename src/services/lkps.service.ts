@@ -9,9 +9,11 @@ export const createLKPSDocument = async (
   name?: string,
   filePath?: string,
   originalFilename?: string,
-  periode?: string
+  periode?: string,
+  tx?: any
 ) => {
-  const latestDoc = await prisma.documentLKPS.findFirst({
+  const client = tx || prisma;
+  const latestDoc = await client.documentLKPS.findFirst({
     where: { 
       prodiId, 
       periode 
@@ -23,7 +25,7 @@ export const createLKPSDocument = async (
 
   const newVersi = latestDoc ? latestDoc.versi + 1 : 1;
 
-  return await prisma.documentLKPS.create({
+  return await client.documentLKPS.create({
     data: {
       prodiId,
       content,
@@ -90,9 +92,11 @@ export const createLKPSCriteria = async (
   criteriaCode: string,
   criteriaName: string,
   subCriteriaCode?: string | null,
-  subCriteriaName?: string | null
+  subCriteriaName?: string | null,
+  tx?: any
 ) => {
-  return await prisma.lKPSCriteria.create({
+  const client = tx || prisma;
+  return await client.lKPSCriteria.create({
     data: {
       documentId,
       criteriaCode,
@@ -107,7 +111,7 @@ export const createLKPSCriteria = async (
 /**
  * Create all 7 LKPS Kriteria for a document
  */
-export const createAllLKPSCriteria = async (documentId: string) => {
+export const createAllLKPSCriteria = async (documentId: string, tx?: any) => {
   const kriteriaIds: Record<string, string> = {};
   
   for (const [code, kriteriaInfo] of Object.entries(LKPS_KRITERIA)) {
@@ -116,7 +120,8 @@ export const createAllLKPSCriteria = async (documentId: string) => {
       code,
       kriteriaInfo.name,
       null,
-      null
+      null,
+      tx
     );
     kriteriaIds[code] = created.id;
   }
@@ -131,14 +136,16 @@ export const createLKPSSheetData = async (
   criteriaId: string,
   sheetName: string,
   sheetTitle: string,
-  data: any[]
+  data: any[],
+  tx?: any
 ) => {
+  const client = tx || prisma;
   const validation = validateSheetData(sheetName, data);
   if (!validation.valid) {
     throw new Error(`Validasi data sheet "${sheetName}" gagal:\n${validation.errors.join('\n')}`);
   }
 
-  return await prisma.lKPSSheetData.create({
+  return await client.lKPSSheetData.create({
     data: {
       criteriaId,
       sheetName,
@@ -156,9 +163,11 @@ export const createLKPSSheetData = async (
  */
 export const createMultipleSheetsData = async (
   documentId: string,
-  parsedData: Record<string, any[]>
+  parsedData: Record<string, any[]>,
+  tx?: any
 ) => {
-  const criterias = await prisma.lKPSCriteria.findMany({
+  const client = tx || prisma;
+  const criterias = await client.lKPSCriteria.findMany({
     where: { documentId },
   });
 
@@ -273,7 +282,8 @@ export const createMultipleSheetsData = async (
       kriteria.id,
       sheetName,
       sheetConfig.sheetTitle,
-      cleanedData
+      cleanedData,
+      tx
     );
     createdSheets.push(created);
   }
@@ -441,5 +451,36 @@ export const toggleLKPSStatus = async (id: string, targetStatus: DocumentStatus,
         data: { status: DocumentStatus.DRAFT, lockedAt: null, lockedBy: null } as any
       });
     }
+  });
+};
+export const importLKPS = async (
+  prodiId: string,
+  parsedData: Record<string, any[]>,
+  name: string,
+  filePath: string,
+  originalFilename: string,
+  periode: string
+) => {
+  return await prisma.$transaction(async (tx) => {
+    // 1. Create Document
+    const document = await createLKPSDocument(
+      prodiId,
+      parsedData,
+      name,
+      filePath,
+      originalFilename,
+      periode,
+      tx
+    );
+
+    // 2. Create Criterias
+    await createAllLKPSCriteria(document.id, tx);
+
+    // 3. Create Sheet Data
+    await createMultipleSheetsData(document.id, parsedData, tx);
+
+    return document;
+  }, {
+    timeout: 30000 // 30 seconds for large imports
   });
 };

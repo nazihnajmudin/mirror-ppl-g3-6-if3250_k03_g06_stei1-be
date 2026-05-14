@@ -152,34 +152,15 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
       return errorResponse(res, 'Gagal memparsing file LKPS', 400);
     }
 
-    // Create DocumentLKPS
-    const document = await lkpsService.createLKPSDocument(
+    // Import LKPS in a single transaction
+    const document = await lkpsService.importLKPS(
       targetProdiId, 
-      parsedData, // Store parsed data as content
+      parsedData, 
       name || `LKPS - ${originalFilename}`, 
       filePath, 
       originalFilename,
       periode?.toString()
     );
-
-    // Create all 7 Kriteria for this document
-    try {
-      await lkpsService.createAllLKPSCriteria(document.id);
-    } catch (kriteriaError: any) {
-      console.error('Failed to create kriteria:', kriteriaError);
-      // Continue - we'll have document with sheets later
-    }
-
-    // Create sheet data from parsed data
-    try {
-      await lkpsService.createMultipleSheetsData(document.id, parsedData);
-    } catch (sheetError: any) {
-      console.error('Failed to create sheet data:', sheetError);
-      // Return validation error if it's from validation, otherwise continue
-      if (sheetError.message?.includes('Validasi')) {
-        return errorResponse(res, sheetError.message, 400);
-      }
-    }
 
     // Return created document with all related data
     const fullDocument = await lkpsService.getLKPSDocumentById(document.id);
