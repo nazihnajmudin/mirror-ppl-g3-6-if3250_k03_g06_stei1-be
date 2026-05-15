@@ -291,6 +291,15 @@ export const updateDashboardByProdiHandler = async (req: Request, res: Response)
   }
 };
 
+export const getInstitusiDashboardSummaryHandler = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const summary = await prodiService.getInstitusiDashboardSummary();
+    successResponse(res, summary, 'Ringkasan dashboard institusi berhasil diambil');
+  } catch (err: any) {
+    errorResponse(res, err.message, 500);
+  }
+};
+
 export const uploadCertificateHandler = async (req: Request, res: Response): Promise<void> => {
   const prodiId = req.params.id as string;
   const file = req.file;

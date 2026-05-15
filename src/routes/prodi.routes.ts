@@ -10,6 +10,7 @@ import {
   getCertificateFileHandler,
   getDashboardByProdiHandler,
   updateDashboardByProdiHandler,
+  getInstitusiDashboardSummaryHandler,
 } from '../controllers/prodi.controller';
 import { authenticate, requireRole } from '../middlewares/auth.middleware';
 import { requireProdiAccess } from '../middlewares/prodi.middleware';
@@ -36,6 +37,12 @@ router.get(
   '/',
   requireRole(Role.SUPER_ADMIN, Role.PIMPINAN),
   getAllProdiHandler
+);
+
+router.get(
+  '/dashboard/summary',
+  requireRole(Role.SUPER_ADMIN, Role.PIMPINAN),
+  getInstitusiDashboardSummaryHandler
 );
 
 router.get(

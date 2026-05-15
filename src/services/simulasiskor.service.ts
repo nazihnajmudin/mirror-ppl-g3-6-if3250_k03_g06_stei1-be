@@ -64,7 +64,7 @@ const calculateIndicatorQuantitative = async (prodiId: string) => {
   });
 
   const evidenDocs = await prisma.dokumenEviden.findMany({
-    where: { prodiId },
+    where: { prodiId, status: 'FINAL' }, // Only final evidence counts
     select: {
       indikator: true,
     },
@@ -77,17 +77,20 @@ const calculateIndicatorQuantitative = async (prodiId: string) => {
 
   evidenDocs.forEach((doc) => {
     const indicators = Array.isArray(doc.indikator) ? doc.indikator : [];
+    const processedInThisDoc = new Set<string>();
+
     indicators.forEach((indicator) => {
       const normalized = normalizeIndicatorText(indicator);
+      
       Object.entries(LKPS_KRITERIA).forEach(([criteriaCode, criteriaInfo]) => {
-        const codeToken = criteriaCode.toLowerCase();
-        const nameToken = criteriaInfo.name.toLowerCase();
-        if (
-          normalized.includes(codeToken) ||
-          normalized.includes(nameToken) ||
-          normalized.includes(nameToken.split(' ')[0])
-        ) {
+        if (processedInThisDoc.has(criteriaCode)) return;
+
+        const codeMatch = normalized === criteriaCode || normalized === `c${criteriaCode}` || normalized === `kriteria ${criteriaCode}`;
+        const nameMatch = normalized === criteriaInfo.name.toLowerCase();
+        
+        if (codeMatch || nameMatch) {
           evidenceCountByCriteria[criteriaCode] = Math.min(evidenceCountByCriteria[criteriaCode] + 1, 10);
+          processedInThisDoc.add(criteriaCode);
         }
       });
     });
@@ -96,11 +99,13 @@ const calculateIndicatorQuantitative = async (prodiId: string) => {
   const criteriaCompletion: Record<string, number> = {};
   if (latestLKPS) {
     latestLKPS.criterias.forEach((criteria) => {
-      const totalSheets = criteria.sheets.length || 1;
+      const totalSheets = criteria.sheets.length;
+      if (totalSheets === 0) {
+        criteriaCompletion[criteria.criteriaCode] = 0;
+        return;
+      }
       const completedSheets = criteria.sheets.filter((sheet) => sheet.isCompleted).length;
-      criteriaCompletion[criteria.criteriaCode] = criteria.isCompleted
-        ? 1
-        : completedSheets / totalSheets;
+      criteriaCompletion[criteria.criteriaCode] = completedSheets / totalSheets;
     });
   }
 
@@ -110,16 +115,17 @@ const calculateIndicatorQuantitative = async (prodiId: string) => {
     const criteriaCode = indicator.code.replace('C.', '');
     const sheetCompletion = Math.round((criteriaCompletion[criteriaCode] ?? 0) * 100);
     const evidenceCount = evidenceCountByCriteria[criteriaCode] ?? 0;
-    const evidenceRatio = Math.min(evidenceCount / 3, 1);
+    
+    // Score components: 70% sheet completion, 30% evidence (max 5 evidences for full evidence score)
+    const evidenceRatio = Math.min(evidenceCount / 5, 1);
     const quantitativeScore = Math.round((sheetCompletion / 100) * 0.7 * 100 + evidenceRatio * 0.3 * 100);
-    const totalScore = quantitativeScore;
 
     return {
       ...indicator,
       quantitativeScore,
       qualitativeScore: null,
       qualitativeNote: null,
-      totalScore,
+      totalScore: quantitativeScore,
       evidenceCount,
       sheetCompletion,
     };
@@ -239,8 +245,9 @@ export const updateSimulationQualitative = async (
       ? update.qualitativeNote
       : existingData?.qualitativeNote ?? null;
     
+    // Use consistent 70/30 weight
     const totalScore = qualitativeScore !== null
-      ? Math.round(indicator.quantitativeScore * 0.5 + qualitativeScore * 0.5)
+      ? Math.round(indicator.quantitativeScore * 0.7 + qualitativeScore * 0.3)
       : indicator.quantitativeScore;
 
     return {
