@@ -537,7 +537,8 @@ export const completeSheetHandler = async (req: Request, res: Response) => {
     return successResponse(res, updated, 'Sheet berhasil ditandai selesai');
   } catch (error: any) {
     console.error('Error completing sheet:', error);
-    return errorResponse(res, 'Gagal menandai sheet selesai', 500);
+    const code = error.message.includes('tidak ditemukan') ? 404 : 500;
+    return errorResponse(res, error.message || 'Gagal menandai sheet selesai', code);
   }
 };
 

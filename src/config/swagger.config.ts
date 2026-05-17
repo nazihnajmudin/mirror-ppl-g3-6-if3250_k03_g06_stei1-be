@@ -122,8 +122,27 @@ const options: swaggerJsdoc.Options = {
           type: 'object',
           properties: {
             status: { type: 'string', example: 'error' },
-            message: { type: 'string' },
-            error: {},
+            message: { type: 'string', example: 'Terjadi kesalahan pada server atau input tidak valid' },
+            error: {
+              type: 'object',
+              description: 'Metadata standar error',
+              properties: {
+                code: { type: 'number', example: 400 },
+                type: { type: 'string', example: 'BAD_REQUEST' },
+                timestamp: { type: 'string', format: 'date-time', example: '2026-05-17T17:49:00.000Z' },
+              }
+            },
+            details: {
+              type: 'array',
+              description: 'Opsional. Biasanya berisi detail error validasi dari Zod.',
+              items: {
+                type: 'object',
+                properties: {
+                  field: { type: 'string', example: 'password' },
+                  message: { type: 'string', example: 'String must contain at least 8 character(s)' }
+                }
+              }
+            }
           },
         },
       },

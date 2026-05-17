@@ -50,7 +50,7 @@ export const getMyProdiHandler = async (req: Request, res: Response): Promise<vo
     successResponse(res, prodis, 'Daftar prodi berhasil diambil');
   } catch (err: any) {
     const message = err?.message || 'Gagal mengambil daftar prodi';
-    errorResponse(res, message, 400);
+    errorResponse(res, message, 500);
   }
 };
 
@@ -246,7 +246,7 @@ export const getDashboardByProdiHandler = async (req: Request, res: Response): P
     successResponse(res, { ...dashboard, accessInfo }, 'Dashboard prodi berhasil diambil');
   } catch (err: any) {
     const message = err?.message || 'Gagal mengambil dashboard prodi';
-    const code = message.includes('tidak ditemukan') ? 404 : 400;
+    const code = message.includes('tidak ditemukan') ? 404 : 500;
     errorResponse(res, message, code);
   }
 };
@@ -286,7 +286,8 @@ export const updateDashboardByProdiHandler = async (req: Request, res: Response)
     successResponse(res, updatedDashboard, 'Dashboard prodi berhasil diupdate');
   } catch (err: any) {
     const message = err?.message || 'Gagal mengupdate dashboard prodi';
-    const code = message.includes('tidak ditemukan') ? 404 : 400;
+    const code = message.includes('tidak ditemukan') ? 404 : 
+      message.includes('tidak boleh') ? 400 : 500;
     errorResponse(res, message, code);
   }
 };

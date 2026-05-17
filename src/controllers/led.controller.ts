@@ -411,7 +411,8 @@ export const softDeleteDocumentHandler = async (req: Request, res: Response) => 
         await ledService.softDeleteDocument(id);
         successResponse(res, null, 'Dokumen berhasil dipindahkan ke tempat sampah');
     } catch (err: any) {
-        errorResponse(res, err.message, 400);
+        const code = err.message.includes('tidak dapat dihapus') ? 400 : 500;
+        errorResponse(res, err.message, code);
     }
 };
 
@@ -428,7 +429,8 @@ export const softDeleteAllDraftsHandler = async (req: Request, res: Response) =>
         await ledService.softDeleteAllDrafts(prodiId, periode);
         successResponse(res, null, 'Semua versi draft berhasil dihapus');
     } catch (err: any) {
-        errorResponse(res, err.message, 400);
+        const code = err.message.includes('FINAL') ? 400 : 500;
+        errorResponse(res, err.message, code);
     }
 };
 
