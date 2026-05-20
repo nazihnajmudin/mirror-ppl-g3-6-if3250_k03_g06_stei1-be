@@ -24,7 +24,7 @@ export const requireResourceAccess = (
   idParamName: string = 'id'
 ) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const resourceId = req.params[idParamName];
+    const resourceId = req.params[idParamName] as string;
     const user = req.user as any;
 
     if (!user) {
@@ -52,7 +52,7 @@ export const requireResourceAccess = (
             where: { id: resourceId },
             select: { document: { select: { prodiId: true } } }
           });
-          prodiId = criteria?.document?.prodiId || null;
+          prodiId = (criteria as any)?.document?.prodiId || null;
           break;
         case 'led_document':
           const ledDoc = await prisma.documentLED.findUnique({ 

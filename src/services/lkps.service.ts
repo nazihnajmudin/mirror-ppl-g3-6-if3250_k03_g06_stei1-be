@@ -172,7 +172,7 @@ export const createMultipleSheetsData = async (
   });
 
   const criteriaByCodes: Record<string, any> = {};
-  criterias.forEach(c => {
+  criterias.forEach((c: any) => {
     criteriaByCodes[c.criteriaCode] = c;
   });
 
