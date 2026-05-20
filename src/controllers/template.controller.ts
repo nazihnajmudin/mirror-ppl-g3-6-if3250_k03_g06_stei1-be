@@ -22,7 +22,8 @@ export const uploadTemplateHandler = async (req: Request, res: Response) => {
         const template = await templateService.uploadTemplate(name, type as TemplateType, category as LamCategory, file, userId);
         successResponse(res, template, 'Template berhasil diunggah', 201);
     } catch (err: any) {
-        errorResponse(res, err.message, 400);
+        const code = err.message.includes('wajib diunggah') || err.message.includes('tidak valid') ? 400 : 500;
+        errorResponse(res, err.message, code);
     }
 };
 
@@ -33,7 +34,7 @@ export const getTemplatesHandler = async (req: Request, res: Response) => {
         const templates = await templateService.getTemplatesForUser(userId, role);
         successResponse(res, templates, 'Berhasil mengambil daftar template');
     } catch (err: any) {
-        errorResponse(res, err.message, 400);
+        errorResponse(res, err.message, 500);
     }
 };
 
@@ -46,7 +47,8 @@ export const downloadTemplateHandler = async (req: Request, res: Response) => {
             if (err) res.status(404).send('File fisik tidak ditemukan di server.');
         });
     } catch (err: any) {
-        errorResponse(res, err.message, 404);
+        const code = err.message.includes('tidak ditemukan') ? 404 : 500;
+        errorResponse(res, err.message, code);
     }
 };
 
@@ -56,6 +58,7 @@ export const deleteTemplateHandler = async (req: Request, res: Response) => {
         await templateService.deleteTemplate(id);
         successResponse(res, null, 'Template berhasil dihapus');
     } catch (err: any) {
-        errorResponse(res, err.message, 404);
+        const code = err.message.includes('tidak ditemukan') ? 404 : 500;
+        errorResponse(res, err.message, code);
     }
 };

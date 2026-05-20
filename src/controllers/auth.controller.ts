@@ -43,7 +43,8 @@ export const registerHandler = async (req: Request, res: Response): Promise<void
     const result = await authService.register({ email, name, password, role, prodiId });
     successResponse(res, result, 'Registrasi berhasil', 201);
   } catch (err: any) {
-    errorResponse(res, err.message, 400);
+    const code = err.message.includes('sudah terdaftar') ? 409 : 400;
+    errorResponse(res, err.message, code);
   }
 };
 
@@ -86,7 +87,10 @@ export const loginHandler = async (req: Request, res: Response): Promise<void> =
     const result = await authService.login({ email, password });
     successResponse(res, result, 'Login berhasil');
   } catch (err: any) {
-    errorResponse(res, err.message, 400);
+    const errorMsg = err.message.toLowerCase();
+    const code = errorMsg.includes('salah') || errorMsg.includes('tidak ditemukan') || errorMsg.includes('dinonaktifkan') ? 401 : 
+      errorMsg.includes('SSO') ? 400 : 500;
+    errorResponse(res, err.message, code);
   }
 };
 

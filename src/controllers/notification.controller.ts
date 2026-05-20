@@ -28,7 +28,8 @@ export const markAsReadHandler = async (req: Request, res: Response) => {
     return successResponse(res, notification, 'Notifikasi ditandai sudah dibaca');
   } catch (error: any) {
     console.error('Error marking notification as read:', error);
-    return errorResponse(res, 'Gagal memperbarui notifikasi', 500);
+    const code = error.message.includes('tidak ditemukan') ? 404 : 500;
+    return errorResponse(res, error.message || 'Gagal memperbarui notifikasi', code);
   }
 };
 

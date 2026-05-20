@@ -40,7 +40,7 @@ export const getEvidenListHandler = async (req: Request, res: Response) => {
         const result = await evidenService.getEvidenList(userId, role);
         successResponse(res, result, 'Berhasil mengambil daftar eviden');
     } catch (err: any) {
-        errorResponse(res, err.message, 400);
+        errorResponse(res, err.message, 500);
     }
 };
 
@@ -70,7 +70,8 @@ export const updateEvidenHandler = async (req: Request, res: Response) => {
         const result = await evidenService.updateEviden(String(req.params.id), parsedData, files, deletedFileIds);
         successResponse(res, result, 'Dokumen Eviden berhasil diperbarui');
     } catch (err: any) {
-        errorResponse(res, err.message, 400);
+        const code = err.message.includes('dikunci') ? 400 : 500;
+        errorResponse(res, err.message, code);
     }
 };
 
@@ -79,7 +80,9 @@ export const deleteEvidenHandler = async (req: Request, res: Response) => {
         await evidenService.deleteEviden(String(req.params.id));
         successResponse(res, null, 'Dokumen Eviden berhasil dihapus');
     } catch (err: any) {
-        errorResponse(res, err.message, 400);
+        const code = err.message.includes('tidak ditemukan') ? 404 : 
+            err.message.includes('tidak dapat dihapus') ? 400 : 500;
+        errorResponse(res, err.message, code);
     }
 };
 

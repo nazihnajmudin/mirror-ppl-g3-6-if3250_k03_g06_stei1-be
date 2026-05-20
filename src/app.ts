@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 dotenv.config();
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -11,6 +11,7 @@ import { swaggerSpec } from './config/swagger.config';
 import passport from './config/passport.config';
 import { sessionConfig } from './config/sso.config';
 import routes from './routes';
+import { errorResponse } from './utils/response';
 
 const app = express();
 
@@ -47,5 +48,26 @@ app.use('/uploads', (req, res, next) => {
 
 // API Routes
 app.use('/api', routes);
+
+// Global 404 Handler
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.originalUrl.startsWith('/api')) {
+    errorResponse(res, `Rute ${req.method} ${req.originalUrl} tidak ditemukan di server`, 404);
+  } else {
+    next();
+  }
+});
+
+// Global Error Handler (crash / throw Error / 500 )
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('Unhandled Server Error:', err);
+  
+  const statusCode = err.status || err.statusCode || 500;
+  const message = statusCode === 500 ? 'Terjadi kesalahan internal pada server' : err.message;
+  
+  const details = process.env.NODE_ENV === 'development' ? err.stack : undefined;
+
+  errorResponse(res, message, statusCode, details);
+});
 
 export default app;

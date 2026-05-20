@@ -11,7 +11,12 @@ export const upsertAccreditationSchema = z.object({
   startDate: z.string().datetime({ message: 'Format tanggal mulai tidak valid' }).optional(),
   endDate: z.string().datetime({ message: 'Format tanggal akhir tidak valid' }).optional(),
   certificateUrl: z.string().optional(),
-});
+}).refine(data => {
+  if (data.startDate && data.endDate) {
+    return new Date(data.startDate) <= new Date(data.endDate);
+  }
+  return true;
+}, { message: 'Tanggal mulai berlaku tidak boleh melebihi tanggal berakhir', path: ['startDate'] });
 
 export const updateDashboardSchema = z
   .object({
