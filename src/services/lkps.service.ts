@@ -398,7 +398,7 @@ export const saveLKPSDocumentAsDraft = async (documentId: string) => {
  * Menggunakan "One Final Rule" Transaction
  */
 export const finalizeLKPSDocument = async (documentId: string, userId: string) => {
-  return await prisma.$transaction(async (tx) => {
+  return await prisma.$transaction(async (tx: any) => {
     const targetDoc = await tx.documentLKPS.findUnique({ where: { id: documentId } });
     if (!targetDoc) throw new Error('Dokumen LKPS tidak ditemukan');
 
@@ -427,7 +427,7 @@ export const finalizeLKPSDocument = async (documentId: string, userId: string) =
 };
 
 export const toggleLKPSStatus = async (id: string, targetStatus: DocumentStatus, userId: string) => {
-  return await prisma.$transaction(async (tx) => {
+  return await prisma.$transaction(async (tx: any) => {
     const targetDoc = await tx.documentLKPS.findUnique({ where: { id } });
     if (!targetDoc) throw new Error('Dokumen LKPS tidak ditemukan');
 
@@ -461,7 +461,7 @@ export const importLKPS = async (
   originalFilename: string,
   periode: string
 ) => {
-  return await prisma.$transaction(async (tx) => {
+  return await prisma.$transaction(async (tx: any) => {
     // 1. Create Document
     const document = await createLKPSDocument(
       prodiId,

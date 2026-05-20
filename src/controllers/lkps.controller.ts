@@ -676,8 +676,8 @@ export const getDocumentSheetsHandler = async (req: Request, res: Response) => {
     }
     
     // Build sheet list with completion status
-    const sheetList = document.criterias.flatMap(criteria =>
-      criteria.sheets.map(sheet => ({
+    const sheetList = document.criterias.flatMap((criteria: any) =>
+      criteria.sheets.map((sheet: any) => ({
         sheetName: sheet.sheetName,
         sheetTitle: sheet.sheetTitle,
         criteriaId: criteria.id,
@@ -694,7 +694,7 @@ export const getDocumentSheetsHandler = async (req: Request, res: Response) => {
       {
         documentId,
         totalSheets: sheetList.length,
-        completedSheets: sheetList.filter(s => s.isCompleted).length,
+        completedSheets: sheetList.filter((s: any) => s.isCompleted).length,
         sheets: sheetList,
       },
       'Berhasil mengambil daftar sheet dokumen'
@@ -846,7 +846,7 @@ export const finalizeLKPSDocumentHandler = async (req: Request, res: Response) =
     }
     
     // Check if all sheets are completed
-    const allSheets = document.criterias.flatMap(c => c.sheets);
+    const allSheets = document.criterias.flatMap((c: any) => c.sheets);
     const hasData = allSheets.length > 0;
     
     if (!hasData) {
