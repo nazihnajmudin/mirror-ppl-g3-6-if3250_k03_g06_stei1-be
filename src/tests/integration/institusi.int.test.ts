@@ -22,8 +22,8 @@ describe('Institusi Management - Integration Test', () => {
   };
 
   beforeAll(async () => {
-    await prisma.user.deleteMany({ where: { email: { in: [adminUser.email, kaprodiUser.email] } } });
     await prisma.dataInstitusi.deleteMany({ where: { periode: "2025/2026-TEST" } });
+    await prisma.user.deleteMany({ where: { email: { in: [adminUser.email, kaprodiUser.email] } } });
 
     const adminRegisterRes = await request(app).post('/api/auth/register').send(adminUser);
     adminToken = adminRegisterRes.body.data.token;
@@ -33,8 +33,8 @@ describe('Institusi Management - Integration Test', () => {
   });
 
   afterAll(async () => {
-    await prisma.user.deleteMany({ where: { email: { in: [adminUser.email, kaprodiUser.email] } } });
     await prisma.dataInstitusi.deleteMany({ where: { periode: "2025/2026-TEST" } });
+    await prisma.user.deleteMany({ where: { email: { in: [adminUser.email, kaprodiUser.email] } } });
     await prisma.$disconnect();
   });
 

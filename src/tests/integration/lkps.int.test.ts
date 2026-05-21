@@ -57,6 +57,8 @@ describe('LKPS Management - Integration Test', () => {
   afterAll(async () => {
     await prisma.documentLKPS.deleteMany({ where: { prodiId: testProdiId } });
     await prisma.user.deleteMany({ where: { email: { in: [adminUser.email, kaprodiUser.email] } } });
+    await prisma.accreditationInfo.deleteMany({ where: { prodiId: testProdiId } });
+    await prisma.prodi.deleteMany({ where: { id: testProdiId } });
     await prisma.$disconnect();
   });
 

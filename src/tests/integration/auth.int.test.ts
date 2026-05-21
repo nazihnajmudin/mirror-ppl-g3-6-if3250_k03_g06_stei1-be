@@ -37,6 +37,12 @@ describe('Auth API - Integration Test', () => {
     await prisma.user.deleteMany({
       where: { email: testUser.email }
     });
+    await prisma.accreditationInfo.deleteMany({
+      where: { prodiId: testUser.prodiId }
+    });
+    await prisma.prodi.deleteMany({
+      where: { id: testUser.prodiId }
+    });
     await prisma.$disconnect();
   });
 

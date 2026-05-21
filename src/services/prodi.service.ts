@@ -214,14 +214,14 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
     getSimulationByProdi(prodiId),
     (prisma as any).ledForm.findFirst({
       where: { prodiId },
-      orderBy: { updatedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
       select: { template: true, content: true },
     }),
     (prisma as any).ledForm.findMany({
       where: { prodiId },
-      orderBy: { updatedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
       take: 5,
-      select: { id: true, createdAt: true, updatedAt: true, template: true, createdBy: { select: { name: true } } },
+      select: { id: true, createdAt: true, template: true, createdBy: { select: { name: true } } },
     }),
     (prisma as any).documentLED.findMany({
       where: { prodiId },
