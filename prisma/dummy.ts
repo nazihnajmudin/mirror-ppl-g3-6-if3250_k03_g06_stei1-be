@@ -812,6 +812,23 @@ async function main() {
   }
 
   console.log('LKPS seeding completed successfully!');
+
+  // ==========================================
+  // SEEDING DEFAULT: THRESHOLD CONFIGS
+  // ==========================================
+  console.log('Seeding default ThresholdConfig values...');
+  const defaultThresholds = [
+    { name: 'accreditation_expiry_warning_days', value: 90 },
+    { name: 'indicator_passing_grade', value: 25 },
+  ];
+  for (const t of defaultThresholds) {
+    await prisma.thresholdConfig.upsert({
+      where: { name: t.name },
+      update: {},
+      create: { name: t.name, value: t.value },
+    });
+  }
+  console.log('ThresholdConfig seeding completed!');
 }
 
 main()
