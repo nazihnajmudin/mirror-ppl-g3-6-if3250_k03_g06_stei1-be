@@ -3,6 +3,7 @@ import { Role } from '@prisma/client';
 import { UpdateProdiInput, UpsertAccreditationInput } from '../validators/prodi.validator';
 import { storageProvider } from '../utils/storage';
 import { getSimulationByProdi } from './simulasiskor.service';
+import { generateEarlyWarnings } from './notification.service';
 
 export interface DashboardData {
   prodi: {
@@ -151,7 +152,7 @@ export const upsertAccreditation = async (prodiId: string, data: UpsertAccredita
     throw new Error('Tanggal mulai berlaku tidak boleh melebihi tanggal berakhir');
   }
 
-  return prisma.accreditationInfo.upsert({
+  const result = await prisma.accreditationInfo.upsert({
     where: { prodiId },
     update: {
       ...(data.grade !== undefined && { grade: data.grade }),
@@ -167,6 +168,10 @@ export const upsertAccreditation = async (prodiId: string, data: UpsertAccredita
       certificateUrl: data.certificateUrl,
     },
   });
+
+  await generateEarlyWarnings().catch(err => console.error('Failed to trigger early warnings after accreditation upsert:', err));
+
+  return result;
 };
 
 export const uploadAccreditationCertificate = async (prodiId: string, file: Express.Multer.File) => {
@@ -486,6 +491,7 @@ export const updateDashboardByProdi = async (
         },
       });
     }
+    await generateEarlyWarnings().catch(err => console.error('Failed to trigger early warnings after prodi update:', err));
   }
 
   return getDashboardByProdi(prodiId);

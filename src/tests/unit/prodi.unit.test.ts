@@ -32,6 +32,10 @@ jest.mock('../../config/database.config', () => ({
   },
 }));
 
+jest.mock('../../services/notification.service', () => ({
+  generateEarlyWarnings: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('../../services/simulasiskor.service', () => ({
   getSimulationByProdi: jest.fn().mockResolvedValue({
     totalScore: 85,

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { successResponse, errorResponse } from '../utils/response';
 import * as settingsService from '../services/settings.service';
+import { generateEarlyWarnings } from '../services/notification.service';
 
 export const getThresholdsHandler = async (req: Request, res: Response) => {
   try {
@@ -19,6 +20,10 @@ export const updateThresholdHandler = async (req: Request, res: Response) => {
       return errorResponse(res, 'Nama dan nilai pengaturan harus diisi', 400);
     }
     const threshold = await settingsService.updateThreshold(name, Number(value));
+    
+    // Recalculate early warnings in real-time when thresholds are modified
+    generateEarlyWarnings().catch(err => console.error('Failed to trigger early warnings after threshold change:', err));
+
     return successResponse(res, threshold, 'Berhasil memperbarui pengaturan');
   } catch (error: any) {
     console.error('Error updating threshold:', error);
