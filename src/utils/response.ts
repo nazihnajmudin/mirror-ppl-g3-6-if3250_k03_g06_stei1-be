@@ -18,7 +18,6 @@ const getHttpStatusType = (code: number): string => {
 };
 
 export const successResponse = (res: Response, data: any, message = 'Berhasil', code = 200) => {
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   return res.status(code).json({ status: 'success', message, data });
 };
 
