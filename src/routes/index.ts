@@ -11,6 +11,7 @@ import institusiRoutes from './institusi.routes';
 import notificationRoutes from './notification.routes';
 import settingsRoutes from './settings.routes';
 import simulasiskorRoutes from './simulasiskor.routes';
+import monitoringRoutes from './monitoring.routes';
 
 const router = Router();
 
@@ -24,6 +25,7 @@ router.use('/templates', templateRoutes);
 router.use('/eviden', evidenRoutes);
 router.use('/institusi', institusiRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/monitoring-evaluasi', monitoringRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/simulasi-skor', simulasiskorRoutes);
 
