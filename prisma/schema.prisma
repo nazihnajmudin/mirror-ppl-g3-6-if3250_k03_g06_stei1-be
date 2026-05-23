@@ -23,6 +23,7 @@ model Prodi {
   ledForms      LedForm[]
   notifications Notification[]
   simulation    AccreditationSimulation?
+  monitoringEvaluations MonitoringEvaluation[]
 }
 
 model User {
@@ -42,6 +43,7 @@ model User {
   ledForms      LedForm[]
   prodi         Prodi?             @relation(fields: [prodiId], references: [id])
   dataInstitusi DataInstitusi[]
+  monitoringEvaluations MonitoringEvaluation[]
 }
 
 model ProdiAssignment {
@@ -86,6 +88,7 @@ model DocumentLKPS {
   
   prodi            Prodi          @relation(fields: [prodiId], references: [id])
   criterias        LKPSCriteria[]
+  monitoringEvaluations MonitoringEvaluation[]
 
   @@unique([prodiId, periode, versi])
 }
@@ -165,6 +168,7 @@ model DocumentLED {
   deletedAt    DateTime?
   pengunggah   User           @relation(fields: [pengunggahId], references: [id])
   prodi        Prodi          @relation(fields: [prodiId], references: [id])
+  monitoringEvaluations MonitoringEvaluation[]
 
   @@unique([prodiId, periode, versi])
 }
@@ -222,6 +226,7 @@ model DokumenEviden {
   prodi    Prodi        @relation(fields: [prodiId], references: [id])
   uploader User         @relation(fields: [uploaderId], references: [id])
   files    EvidenFile[]
+  monitoringEvaluations MonitoringEvaluation[]
 }
 
 model EvidenFile {
@@ -273,6 +278,37 @@ model ThresholdConfig {
   updatedAt DateTime @updatedAt
 }
 
+model MonitoringEvaluation {
+  id             String                  @id @default(uuid())
+  documentType    MonitoringDocumentType
+  documentRefId   String
+  documentLabel   String
+  prodiId         String
+  indicatorCode   String?
+  indicatorName   String
+  note            String                  @db.Text
+  evaluation      String?                 @db.Text
+  recommendation  String?                 @db.Text
+  status          MonitoringStatus        @default(OPEN)
+  reviewedAt      DateTime?
+  createdById     String
+  lkpsId          String?
+  ledId           String?
+  evidenId        String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  createdBy       User                    @relation(fields: [createdById], references: [id])
+  prodi           Prodi                   @relation(fields: [prodiId], references: [id], onDelete: Cascade)
+  lkps            DocumentLKPS?           @relation(fields: [lkpsId], references: [id], onDelete: Cascade)
+  led             DocumentLED?            @relation(fields: [ledId], references: [id], onDelete: Cascade)
+  eviden          DokumenEviden?          @relation(fields: [evidenId], references: [id], onDelete: Cascade)
+
+  @@index([documentType, documentRefId])
+  @@index([createdById])
+  @@index([prodiId])
+}
+
 enum Template {
   INFOKOM
   LAM_TEKNIK
@@ -304,4 +340,16 @@ enum NotificationType {
   INFO
   WARNING
   DANGER
+}
+
+enum MonitoringDocumentType {
+  LKPS
+  LED
+  EVIDEN
+}
+
+enum MonitoringStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
 }
