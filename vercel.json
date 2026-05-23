@@ -15,5 +15,11 @@
       "dest": "src/server.ts"
     }
   ],
-  "installCommand": "npm install && npx prisma generate"
+  "functions": {
+    "src/server.ts": {
+      "runtime": "@vercel/node@canary"
+    }
+  },
+  "installCommand": "npm install && npx prisma generate",
+  "buildCommand": "tsc --noImplicitAny false --skipLibCheck true && tsc-alias -p tsconfig.json"
 }
