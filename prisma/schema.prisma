@@ -247,16 +247,18 @@ model DataInstitusi {
   id        String @id @default(uuid())
   periode   String // Contoh: "2025/2026"
   sheetName String // Kode sheet LKPS, contoh: "2b"
+  prodiId   String?
   data      Json // Menyimpan array of objects data UPPS
 
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id])
+  prodi       Prodi? @relation(fields: [prodiId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Mencegah duplikasi data untuk sheet dan periode yang sama
-  @@unique([periode, sheetName])
+  @@unique([periode, sheetName, prodiId])
 }
 
 model Notification {
