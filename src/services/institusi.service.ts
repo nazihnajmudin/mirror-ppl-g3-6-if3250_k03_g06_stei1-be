@@ -3,16 +3,32 @@ import prisma from '../config/database.config';
 export const upsertAndSyncInstitusi = async (
   periode: string,
   sheetName: string,
+  prodiId: string | null,
   uppsDataPayload: any[],
   userId: string
 ) => {
-  const dataInstitusi = await prisma.dataInstitusi.upsert({
+  const existingInstitusi = await prisma.dataInstitusi.findFirst({
     where: {
-      periode_sheetName: { periode, sheetName },
+      periode,
+      sheetName,
+      prodiId,
     },
-    update: { data: uppsDataPayload, createdById: userId }, 
-    create: { periode, sheetName, data: uppsDataPayload, createdById: userId },
   });
+
+  const dataInstitusi = existingInstitusi
+    ? await prisma.dataInstitusi.update({
+        where: { id: existingInstitusi.id },
+        data: { data: uppsDataPayload, createdById: userId },
+      })
+    : await prisma.dataInstitusi.create({
+        data: {
+          periode,
+          sheetName,
+          prodiId,
+          data: uppsDataPayload,
+          createdById: userId,
+        },
+      });
 
   const targetSheets = await prisma.lKPSSheetData.findMany({
     where: {
@@ -20,6 +36,7 @@ export const upsertAndSyncInstitusi = async (
       criteria: {
         document: {
           periode: periode,
+          ...(prodiId ? { prodiId } : {}),
         },
       },
     },
@@ -51,9 +68,10 @@ export const upsertAndSyncInstitusi = async (
   return dataInstitusi;
 };
 
-export const getDataInstitusi = async (periode: string, sheetName?: string) => {
+export const getDataInstitusi = async (periode: string, sheetName?: string, prodiId?: string) => {
   const whereClause: any = { periode };
   if (sheetName) whereClause.sheetName = sheetName;
+  if (prodiId) whereClause.prodiId = prodiId;
   
   return await prisma.dataInstitusi.findMany({
     where: whereClause,
