@@ -83,7 +83,7 @@ export const LKPS_SHEETS: Record<string, LKPSSheetConfig> = {
 
   '1': {
     sheetName: '1',
-    sheetTitle: 'Visi Misi Tujuan Strategi',
+    sheetTitle: 'Visi Misi Tujuan Strategi Perguruan Tinggi dan UPPS serta Visi Keilmuan Program Studi',
     criteriaCode: '1',
     headerRows: 4,
     rowType: 'fixed',
