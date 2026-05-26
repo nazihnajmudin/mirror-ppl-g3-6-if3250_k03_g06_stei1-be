@@ -8,41 +8,42 @@ datasource db {
 }
 
 model Prodi {
-  id            String             @id @default(uuid())
-  fullname      String             @unique
-  abbreviation  String?
-  degree        String?
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-  accreditation AccreditationInfo?
-  documentLED   DocumentLED[]
-  documentLKPS  DocumentLKPS[]
-  assignments   ProdiAssignment[]
-  users         User[]
-  dokumenEviden DokumenEviden[]
-  ledForms      LedForm[]
-  notifications Notification[]
-  simulation    AccreditationSimulation?
+  id                    String                   @id @default(uuid())
+  fullname              String                   @unique
+  abbreviation          String?
+  degree                String?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  accreditation         AccreditationInfo?
+  documentLED           DocumentLED[]
+  documentLKPS          DocumentLKPS[]
+  assignments           ProdiAssignment[]
+  users                 User[]
+  dokumenEviden         DokumenEviden[]
+  ledForms              LedForm[]
+  dataInstitusi         DataInstitusi[]
+  notifications         Notification[]
+  simulation            AccreditationSimulation?
   monitoringEvaluations MonitoringEvaluation[]
 }
 
 model User {
-  id            String             @id @default(uuid())
-  email         String             @unique
-  name          String
-  password      String
-  role          Role
-  isActive      Boolean            @default(true)
-  prodiId       String?
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-  documentLED   DocumentLED[]
-  assignments   ProdiAssignment[]
-  templates     DocumentTemplate[]
-  dokumenEviden DokumenEviden[]
-  ledForms      LedForm[]
-  prodi         Prodi?             @relation(fields: [prodiId], references: [id])
-  dataInstitusi DataInstitusi[]
+  id                    String                 @id @default(uuid())
+  email                 String                 @unique
+  name                  String
+  password              String
+  role                  Role
+  isActive              Boolean                @default(true)
+  prodiId               String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  documentLED           DocumentLED[]
+  assignments           ProdiAssignment[]
+  templates             DocumentTemplate[]
+  dokumenEviden         DokumenEviden[]
+  ledForms              LedForm[]
+  prodi                 Prodi?                 @relation(fields: [prodiId], references: [id])
+  dataInstitusi         DataInstitusi[]
   monitoringEvaluations MonitoringEvaluation[]
 }
 
@@ -85,25 +86,25 @@ model DocumentLKPS {
   updatedAt        DateTime       @updatedAt
   periode          String?
   versi            Int            @default(1)
-  
-  prodi            Prodi          @relation(fields: [prodiId], references: [id])
-  criterias        LKPSCriteria[]
+
+  prodi                 Prodi                  @relation(fields: [prodiId], references: [id])
+  criterias             LKPSCriteria[]
   monitoringEvaluations MonitoringEvaluation[]
 
   @@unique([prodiId, periode, versi])
 }
 
 model AccreditationSimulation {
-  id                String        @id @default(uuid())
-  prodiId           String        @unique
+  id                String   @id @default(uuid())
+  prodiId           String   @unique
   indicators        Json
-  quantitativeScore Float         @default(0)
-  qualitativeScore  Float         @default(0)
-  totalScore        Float         @default(0)
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  quantitativeScore Float    @default(0)
+  qualitativeScore  Float    @default(0)
+  totalScore        Float    @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  prodi             Prodi         @relation(fields: [prodiId], references: [id], onDelete: Cascade)
+  prodi Prodi @relation(fields: [prodiId], references: [id], onDelete: Cascade)
 }
 
 model LKPSCriteria {
@@ -152,22 +153,22 @@ model LKPSSheetData {
 }
 
 model DocumentLED {
-  id           String         @id @default(uuid())
-  prodiId      String
-  name         String?
-  status       DocumentStatus @default(DRAFT)
-  content      String?
-  lockedAt     DateTime?
-  lockedBy     String?
-  ukuran       Int?
-  periode      String
-  versi        Int
-  pengunggahId String
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  deletedAt    DateTime?
-  pengunggah   User           @relation(fields: [pengunggahId], references: [id])
-  prodi        Prodi          @relation(fields: [prodiId], references: [id])
+  id                    String                 @id @default(uuid())
+  prodiId               String
+  name                  String?
+  status                DocumentStatus         @default(DRAFT)
+  content               String?
+  lockedAt              DateTime?
+  lockedBy              String?
+  ukuran                Int?
+  periode               String
+  versi                 Int
+  pengunggahId          String
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  deletedAt             DateTime?
+  pengunggah            User                   @relation(fields: [pengunggahId], references: [id])
+  prodi                 Prodi                  @relation(fields: [prodiId], references: [id])
   monitoringEvaluations MonitoringEvaluation[]
 
   @@unique([prodiId, periode, versi])
@@ -185,9 +186,9 @@ model LedForm {
   lockedBy    String?
   createdById String
   createdAt   DateTime       @default(now())
-  
-  prodi       Prodi    @relation(fields: [prodiId], references: [id])
-  createdBy   User     @relation(fields: [createdById], references: [id])
+
+  prodi     Prodi @relation(fields: [prodiId], references: [id])
+  createdBy User  @relation(fields: [createdById], references: [id])
 
   @@unique([prodiId, periode, template, versi])
 }
@@ -209,23 +210,23 @@ model DocumentTemplate {
 }
 
 model DokumenEviden {
-  id        String   @id @default(uuid())
+  id        String         @id @default(uuid())
   prodiId   String
   judul     String
-  deskripsi String?  @db.Text
-  indikator String[] @default([])
+  deskripsi String?        @db.Text
+  indikator String[]       @default([])
   periode   String?
-  status      DocumentStatus @default(DRAFT)
-  lockedAt    DateTime?
-  lockedBy    String?
+  status    DocumentStatus @default(DRAFT)
+  lockedAt  DateTime?
+  lockedBy  String?
 
   uploaderId String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  prodi    Prodi        @relation(fields: [prodiId], references: [id])
-  uploader User         @relation(fields: [uploaderId], references: [id])
-  files    EvidenFile[]
+  prodi                 Prodi                  @relation(fields: [prodiId], references: [id])
+  uploader              User                   @relation(fields: [uploaderId], references: [id])
+  files                 EvidenFile[]
   monitoringEvaluations MonitoringEvaluation[]
 }
 
@@ -244,7 +245,7 @@ model EvidenFile {
 }
 
 model DataInstitusi {
-  id        String @id @default(uuid())
+  id        String  @id @default(uuid())
   periode   String // Contoh: "2025/2026"
   sheetName String // Kode sheet LKPS, contoh: "2b"
   prodiId   String?
@@ -258,7 +259,7 @@ model DataInstitusi {
   updatedAt DateTime @updatedAt
 
   // Mencegah duplikasi data untuk sheet dan periode yang sama
-  @@unique([periode, sheetName, prodiId])
+  @@unique([periode, sheetName])
 }
 
 model Notification {
@@ -281,30 +282,30 @@ model ThresholdConfig {
 }
 
 model MonitoringEvaluation {
-  id             String                  @id @default(uuid())
-  documentType    MonitoringDocumentType
-  documentRefId   String
-  documentLabel   String
-  prodiId         String
-  indicatorCode   String?
-  indicatorName   String
-  note            String                  @db.Text
-  evaluation      String?                 @db.Text
-  recommendation  String?                 @db.Text
-  status          MonitoringStatus        @default(OPEN)
-  reviewedAt      DateTime?
-  createdById     String
-  lkpsId          String?
-  ledId           String?
-  evidenId        String?
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
+  id             String                 @id @default(uuid())
+  documentType   MonitoringDocumentType
+  documentRefId  String
+  documentLabel  String
+  prodiId        String
+  indicatorCode  String?
+  indicatorName  String
+  note           String                 @db.Text
+  evaluation     String?                @db.Text
+  recommendation String?                @db.Text
+  status         MonitoringStatus       @default(OPEN)
+  reviewedAt     DateTime?
+  createdById    String
+  lkpsId         String?
+  ledId          String?
+  evidenId       String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
 
-  createdBy       User                    @relation(fields: [createdById], references: [id])
-  prodi           Prodi                   @relation(fields: [prodiId], references: [id], onDelete: Cascade)
-  lkps            DocumentLKPS?           @relation(fields: [lkpsId], references: [id], onDelete: Cascade)
-  led             DocumentLED?            @relation(fields: [ledId], references: [id], onDelete: Cascade)
-  eviden          DokumenEviden?          @relation(fields: [evidenId], references: [id], onDelete: Cascade)
+  createdBy User           @relation(fields: [createdById], references: [id])
+  prodi     Prodi          @relation(fields: [prodiId], references: [id], onDelete: Cascade)
+  lkps      DocumentLKPS?  @relation(fields: [lkpsId], references: [id], onDelete: Cascade)
+  led       DocumentLED?   @relation(fields: [ledId], references: [id], onDelete: Cascade)
+  eviden    DokumenEviden? @relation(fields: [evidenId], references: [id], onDelete: Cascade)
 
   @@index([documentType, documentRefId])
   @@index([createdById])

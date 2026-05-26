@@ -3,6 +3,12 @@ import jwt from 'jsonwebtoken';
 import prisma from '../config/database.config';
 import { Role } from '@prisma/client';
 import { JwtPayload } from '../middlewares/auth.middleware';
+import { 
+  UnauthorizedError, 
+  ForbiddenError, 
+  ConflictError,
+  BadRequestError 
+} from '../utils/errors';
 
 const SALT_ROUNDS = 10;
 
@@ -28,7 +34,9 @@ const signToken = (payload: JwtPayload): string => {
 
 export const register = async (input: RegisterInput) => {
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
-  if (existing) throw new Error('Email sudah terdaftar');
+  
+  if (existing) throw new ConflictError('Email sudah terdaftar');
+  
   const hashedPassword = await bcrypt.hash(input.password, SALT_ROUNDS);
   const user = await prisma.user.create({
     data: {
@@ -48,21 +56,24 @@ export const register = async (input: RegisterInput) => {
       createdAt: true,
     },
   });
+  
   const token = signToken({ userId: user.id, name: user.name, email: user.email, role: user.role, prodiId: user.prodiId });
   return { user, token };
 };
 
 export const login = async (input: LoginInput) => {
   const user = await prisma.user.findUnique({ where: { email: input.email } });
-  if (!user) throw new Error('Email atau password salah');
-  if (!user.isActive) throw new Error('Akun Anda dinonaktifkan. Hubungi Administrator.');
-  if (!user.password) throw new Error('Akun ini tidak menggunakan login password. Gunakan SSO ITB.');
+  
+  if (!user) throw new UnauthorizedError('Email atau password salah');
+  if (!user.isActive) throw new ForbiddenError('Akun Anda dinonaktifkan. Hubungi Administrator.');
+  if (!user.password) throw new BadRequestError('Akun ini tidak menggunakan login password. Gunakan SSO ITB.');
   
   const valid = await bcrypt.compare(input.password, user.password);
   
-  if (!valid) throw new Error('Email atau password salah');
+  if (!valid) throw new UnauthorizedError('Email atau password salah');
   
   const token = signToken({ userId: user.id, name: user.name, email: user.email, role: user.role, prodiId: user.prodiId });
   const { password: _pw, ...userWithoutPassword } = user;
+  
   return { user: userWithoutPassword, token };
 };

@@ -12,6 +12,7 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "baseUrl": ".",
+    "ignoreDeprecations": "5.0",
     "paths": { "@/*": ["src/*"] },
     "types": ["node", "express", "jest"]
   },
