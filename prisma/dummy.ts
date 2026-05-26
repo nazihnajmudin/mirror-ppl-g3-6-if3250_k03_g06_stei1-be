@@ -659,26 +659,34 @@ async function seedDataInstitusi(usersByKey: Map<string, { id: string }>) {
   ];
 
   for (const item of dataInstitusiSeeds) {
-    await prisma.dataInstitusi.upsert({
+    const existing = await prisma.dataInstitusi.findFirst({
       where: {
-        periode_sheetName_prodiId: {
+        periode: item.periode,
+        sheetName: item.sheetName,
+        prodiId: null,
+      },
+    });
+
+    if (existing) {
+      await prisma.dataInstitusi.update({
+        where: { id: existing.id },
+        data: {
+          data: item.data,
+          createdById: superAdmin.id,
+        },
+      });
+    } else {
+      await prisma.dataInstitusi.create({
+        data: {
+          id: item.id,
           periode: item.periode,
           sheetName: item.sheetName,
           prodiId: null,
+          data: item.data,
+          createdById: superAdmin.id,
         },
-      },
-      update: {
-        data: item.data,
-        createdById: superAdmin.id,
-      },
-      create: {
-        id: item.id,
-        periode: item.periode,
-        sheetName: item.sheetName,
-        data: item.data,
-        createdById: superAdmin.id,
-      },
-    });
+      });
+    }
   }
 }
 
