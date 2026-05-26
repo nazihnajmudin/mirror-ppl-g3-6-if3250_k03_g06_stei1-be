@@ -24,6 +24,7 @@ model Prodi {
   notifications Notification[]
   simulation    AccreditationSimulation?
   monitoringEvaluations MonitoringEvaluation[]
+  dataInstitusi DataInstitusi[]
 }
 
 model User {
