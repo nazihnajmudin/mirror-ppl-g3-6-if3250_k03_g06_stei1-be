@@ -661,9 +661,10 @@ async function seedDataInstitusi(usersByKey: Map<string, { id: string }>) {
   for (const item of dataInstitusiSeeds) {
     await prisma.dataInstitusi.upsert({
       where: {
-        periode_sheetName: {
+        periode_sheetName_prodiId: {
           periode: item.periode,
           sheetName: item.sheetName,
+          prodiId: null,
         },
       },
       update: {
