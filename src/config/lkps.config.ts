@@ -59,7 +59,7 @@ export const LKPS_SHEETS: Record<string, LKPSSheetConfig> = {
       { key: 'nama_prodi', label: 'Nama Program Studi', type: 'text' },
       { key: 'status_akreditasi', label: 'Status Akreditasi', type: 'select', options: ['Terakreditasi Unggul', 'Terakreditasi A', 'Terakreditasi Baik Sekali', 'Terakreditasi B', 'Terakreditasi Baik', 'Terakreditasi C', 'Terakreditasi Minimum', 'Tidak Terakreditasi'] },
       { key: 'no_sk', label: 'No. SK', type: 'text' },
-      { key: 'tgl_kadaluarsa', label: 'Tgl. Kadaluarsa', type: 'date' },
+      { key: 'tgl_kedaluwarsa', label: 'Tgl. Kedaluwarsa', type: 'date' },
       { key: 'jumlah_mahasiswa', label: 'Jumlah Mahasiswa', type: 'number' },
     ],
     applicableTo: ['D1', 'D2', 'D3', 'S', 'STr', 'M', 'MTr', 'D', 'DTr', 'PSPPI'],

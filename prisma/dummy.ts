@@ -83,7 +83,7 @@ const prodiSeeds: ProdiSeed[] = [
     accreditation: {
       grade: 'A',
       startDate: new Date('2023-07-01'),
-      endDate: new Date('2028-06-30'),
+      endDate: new Date('2026-04-15'),
       certificateUrl: 'https://example.com/certificates/ep.pdf',
     },
   },
@@ -109,7 +109,7 @@ const prodiSeeds: ProdiSeed[] = [
     accreditation: {
       grade: 'Baik Sekali',
       startDate: new Date('2022-01-01'),
-      endDate: new Date('2027-12-31'),
+      endDate: new Date('2026-07-15'),
       certificateUrl: 'https://example.com/certificates/eb.pdf',
     },
   },
@@ -313,7 +313,7 @@ const buildLkpsSheets = (prodi: ProdiSeed, index: number): LkpsSheetSeed[] => {
           mk_diampu_ps: `${prodi.abbreviation}101, ${prodi.abbreviation}201`,
         },
       ],
-      isCompleted: true,
+      isCompleted: prodi.key !== 'ii' && prodi.key !== 'mii',
     },
     {
       criteriaCode: '5',
@@ -333,7 +333,7 @@ const buildLkpsSheets = (prodi: ProdiSeed, index: number): LkpsSheetSeed[] => {
           waktu_penggunaan: 16,
         },
       ],
-      isCompleted: true,
+      isCompleted: prodi.key !== 'ii' && prodi.key !== 'mii',
     },
     {
       criteriaCode: '6',
@@ -355,7 +355,7 @@ const buildLkpsSheets = (prodi: ProdiSeed, index: number): LkpsSheetSeed[] => {
           asing_pt_ts: 1,
         },
       ],
-      isCompleted: true,
+      isCompleted: prodi.key !== 'ii' && prodi.key !== 'mii',
     },
     {
       criteriaCode: '7',
@@ -376,7 +376,7 @@ const buildLkpsSheets = (prodi: ProdiSeed, index: number): LkpsSheetSeed[] => {
           tanggal_dokumen: '2024-04-01',
         },
       ],
-      isCompleted: true,
+      isCompleted: prodi.key !== 'ii' && prodi.key !== 'mii',
     },
   ];
 };
@@ -1097,7 +1097,8 @@ async function main() {
   await seedTemplates('user-dummy-super-admin');
   await seedThresholds();
   await seedDataInstitusi(usersByKey);
-  await seedNotifications(prodiIdByKey);
+  // seedNotifications is disabled to prevent leaked development messages in the inbox
+  // await seedNotifications(prodiIdByKey);
   await seedSimulations(prodiIdByKey);
   await seedLedAndLkpsDocuments(prodiIdByKey, usersByKey);
   await seedEviden(prodiIdByKey, usersByKey);
@@ -1681,6 +1682,14 @@ async function main() {
     });
   }
   console.log('ThresholdConfig seeding completed!');
+
+  // ==========================================
+  // TRIGGER EARLY WARNING GENERATION
+  // ==========================================
+  console.log('Triggering early warning generation...');
+  const { generateEarlyWarnings } = await import('../src/services/notification.service');
+  await generateEarlyWarnings();
+  console.log('Early warning generation completed!');
 }
 
 main()

@@ -10,6 +10,11 @@ export const getNotificationsHandler = async (req: Request, res: Response) => {
       return errorResponse(res, 'Tidak terautentikasi', 401);
     }
     
+    // Proactively generate/update early warnings on fetch to ensure latest status is evaluated
+    await notificationService.generateEarlyWarnings().catch(err => {
+      console.error('Error generating early warnings in handler:', err);
+    });
+
     const notifications = await notificationService.getNotifications(
       String(user.role), 
       user.prodiId ? String(user.prodiId) : null
