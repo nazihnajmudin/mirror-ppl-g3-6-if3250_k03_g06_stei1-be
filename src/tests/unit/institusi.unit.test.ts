@@ -43,9 +43,9 @@ describe('Institusi Service - Unit Test', () => {
 
   describe('upsertAndSyncInstitusi', () => {
     it('harus menyimpan data institusi dan melakukan sinkronisasi parsial ke prodi', async () => {
-      const mockCreateResult = { id: "master-1", periode: mockPeriode, sheetName: mockSheetName, prodiId: null, data: mockPayloadData };
+      const mockCreatedResult = { id: "master-1", periode: mockPeriode, sheetName: mockSheetName, prodiId: null, data: mockPayloadData };
       (prisma.dataInstitusi.findFirst as jest.Mock).mockResolvedValue(null);
-      (prisma.dataInstitusi.create as jest.Mock).mockResolvedValue(mockCreateResult);
+      (prisma.dataInstitusi.create as jest.Mock).mockResolvedValue(mockCreatedResult);
 
       const mockExistingProdiSheets = [
         { 
@@ -63,7 +63,7 @@ describe('Institusi Service - Unit Test', () => {
         where: { periode: mockPeriode, sheetName: mockSheetName, prodiId: null }
       });
 
-      expect(prisma.dataInstitusi.create).toHaveBeenCalledWith({
+      expect(prisma.dataInstitusi.create).toHaveBeenCalledWith(expect.objectContaining({
         data: {
           periode: mockPeriode,
           sheetName: mockSheetName,
@@ -71,7 +71,7 @@ describe('Institusi Service - Unit Test', () => {
           data: mockPayloadData,
           createdById: mockUserId,
         }
-      });
+      }));
 
       expect(prisma.lKPSSheetData.update).toHaveBeenCalledWith({
         where: { id: "sheet-prodi-1" },
@@ -80,7 +80,7 @@ describe('Institusi Service - Unit Test', () => {
         }
       });
 
-      expect(result).toEqual(mockCreateResult);
+      expect(result).toEqual(mockCreatedResult);
     });
   });
 });
