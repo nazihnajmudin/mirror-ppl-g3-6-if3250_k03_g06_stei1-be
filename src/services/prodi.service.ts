@@ -169,7 +169,7 @@ export const upsertAccreditation = async (prodiId: string, data: UpsertAccredita
     },
   });
 
-  await generateEarlyWarnings().catch(err => console.error('Failed to trigger early warnings after accreditation upsert:', err));
+  await generateEarlyWarnings(prodiId).catch(err => console.error('Failed to trigger early warnings:', err));
 
   return result;
 };
@@ -491,7 +491,7 @@ export const updateDashboardByProdi = async (
         },
       });
     }
-    await generateEarlyWarnings().catch(err => console.error('Failed to trigger early warnings after prodi update:', err));
+    await generateEarlyWarnings(prodiId).catch(err => console.error('Failed to trigger early warnings after prodi update:', err));
   }
 
   return getDashboardByProdi(prodiId);

@@ -1,4 +1,5 @@
 import prisma from '../config/database.config';
+import { generateEarlyWarnings } from './notification.service';
 
 export const upsertAndSyncInstitusi = async (
   periode: string,
@@ -64,6 +65,8 @@ export const upsertAndSyncInstitusi = async (
       data: { data: finalDataToSave },
     });
   }
+
+  generateEarlyWarnings(prodiId || undefined).catch(err => console.error('Failed to trigger early warnings after institusi sync:', err));
 
   return dataInstitusi;
 };

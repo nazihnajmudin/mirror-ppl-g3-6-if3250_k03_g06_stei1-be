@@ -2,6 +2,7 @@ import prisma from '../config/database.config';
 import { DocumentStatus } from '@prisma/client';
 import { LKPS_KRITERIA } from '@/config/lkps.config';
 import { validateSheetData } from '../validators/lkps.validator';
+import { generateEarlyWarnings } from './notification.service';
 
 export const createLKPSDocument = async (
   prodiId: string,
@@ -323,7 +324,7 @@ export const updateLKPSSheetData = async (
     throw new Error(`Validasi data sheet "${sheetName}" gagal:\n${validation.errors.join('\n')}`);
   }
 
-  return await prisma.lKPSSheetData.update({
+  const result = await prisma.lKPSSheetData.update({
     where: {
       criteriaId_sheetName: {
         criteriaId,
@@ -332,6 +333,13 @@ export const updateLKPSSheetData = async (
     },
     data: { data },
   });
+
+  const criteria = await prisma.lKPSCriteria.findUnique({ where: { id: criteriaId }, include: { document: true } });
+  if (criteria?.document?.prodiId) {
+    generateEarlyWarnings(criteria.document.prodiId).catch(err => console.error('Failed to trigger early warnings after sheet update:', err));
+  }
+
+  return result;
 };
 
 /**
@@ -343,7 +351,7 @@ export const markSheetCompleted = async (
 ) => {
   await checkLKPSLock(criteriaId);
 
-  return await prisma.lKPSSheetData.update({
+  const result = await prisma.lKPSSheetData.update({
     where: {
       criteriaId_sheetName: {
         criteriaId,
@@ -352,6 +360,13 @@ export const markSheetCompleted = async (
     },
     data: { isCompleted: true },
   });
+
+  const criteria = await prisma.lKPSCriteria.findUnique({ where: { id: criteriaId }, include: { document: true } });
+  if (criteria?.document?.prodiId) {
+    generateEarlyWarnings(criteria.document.prodiId).catch(err => console.error('Failed to trigger early warnings after sheet complete:', err));
+  }
+
+  return result;
 };
 
 /**
@@ -414,7 +429,7 @@ export const finalizeLKPSDocument = async (documentId: string, userId: string) =
     });
 
     // 2. Jadikan dokumen ini FINAL
-    return await tx.documentLKPS.update({
+    const result = await tx.documentLKPS.update({
       where: { id: documentId },
       data: {
         status: 'FINAL',
@@ -423,6 +438,9 @@ export const finalizeLKPSDocument = async (documentId: string, userId: string) =
         updatedAt: new Date(),
       } as any,
     });
+
+    generateEarlyWarnings(targetDoc.prodiId).catch(err => console.error('Failed to trigger early warnings after LKPS finalize:', err));
+    return result;
   });
 };
 
@@ -431,6 +449,7 @@ export const toggleLKPSStatus = async (id: string, targetStatus: DocumentStatus,
     const targetDoc = await tx.documentLKPS.findUnique({ where: { id } });
     if (!targetDoc) throw new Error('Dokumen LKPS tidak ditemukan');
 
+    let result;
     if (targetStatus === DocumentStatus.FINAL) {
       await tx.documentLKPS.updateMany({
         where: { 
@@ -441,16 +460,19 @@ export const toggleLKPSStatus = async (id: string, targetStatus: DocumentStatus,
         },
         data: { status: DocumentStatus.DRAFT, lockedAt: null, lockedBy: null } as any
       });
-      return await tx.documentLKPS.update({
+      result = await tx.documentLKPS.update({
         where: { id },
         data: { status: DocumentStatus.FINAL, lockedAt: new Date(), lockedBy: userId } as any
       });
     } else {
-      return await tx.documentLKPS.update({
+      result = await tx.documentLKPS.update({
         where: { id },
         data: { status: DocumentStatus.DRAFT, lockedAt: null, lockedBy: null } as any
       });
     }
+
+    generateEarlyWarnings(targetDoc.prodiId).catch(err => console.error('Failed to trigger early warnings after LKPS status toggle:', err));
+    return result;
   });
 };
 export const importLKPS = async (
@@ -479,6 +501,7 @@ export const importLKPS = async (
     // 3. Create Sheet Data
     await createMultipleSheetsData(document.id, parsedData, tx);
 
+    generateEarlyWarnings(prodiId).catch(err => console.error('Failed to trigger early warnings after LKPS import:', err));
     return document;
   }, {
     timeout: 30000 // 30 seconds for large imports

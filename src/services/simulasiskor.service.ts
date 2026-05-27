@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import prisma from '../config/database.config';
 import { LKPS_KRITERIA } from '../config/lkps.config';
+import { generateEarlyWarnings } from './notification.service';
 
 export interface SimulationIndicator {
   code: string;
@@ -210,6 +211,8 @@ export const getSimulationByProdi = async (prodiId: string) => {
     },
   });
 
+  await generateEarlyWarnings(prodiId).catch(err => console.error('Failed to trigger early warnings after simulation update:', err));
+
   return {
     prodiId,
     indicators,
@@ -276,6 +279,8 @@ export const updateSimulationQualitative = async (
       totalScore: summary.totalScore,
     },
   });
+
+  await generateEarlyWarnings(prodiId).catch(err => console.error('Failed to trigger early warnings after simulation update:', err));
 
   return {
     prodiId,

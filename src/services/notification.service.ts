@@ -3,27 +3,31 @@ import { getThresholdValue } from './settings.service';
 import { NotificationType } from '@prisma/client';
 import { getSimulationByProdi } from './simulasiskor.service';
 
-export const generateEarlyWarnings = async () => {
-  console.log('[Notification Service] Generating early warnings...');
+export const generateEarlyWarnings = async (prodiId?: string) => {
+  console.log(`[Notification Service] Generating early warnings${prodiId ? ` for prodi ${prodiId}` : ''}...`);
   
   const expiryThreshold = await getThresholdValue('accreditation_expiry_warning_days', 180);
   const passingGradeThresholdRaw = await getThresholdValue('indicator_passing_grade', 25);
   const passingGradeThreshold = passingGradeThresholdRaw / 10; // Convert 25 -> 2.5
   
   const now = new Date();
-  const warningDate = new Date();
-  warningDate.setDate(now.getDate() + expiryThreshold);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const warningDate = new Date(today);
+  warningDate.setDate(today.getDate() + expiryThreshold);
 
   const prodis = await prisma.prodi.findMany({
+    where: prodiId ? { id: prodiId } : {},
     include: { accreditation: true },
   });
 
   for (const prodi of prodis) {
     // 1. Check Accreditation Expiry
     if (prodi.accreditation?.endDate) {
-      const endDate = new Date(prodi.accreditation.endDate);
-      const isExpiringSoon = endDate <= warningDate && endDate > now;
-      const isExpired = endDate <= now;
+      const endDateFull = new Date(prodi.accreditation.endDate);
+      const endDate = new Date(endDateFull.getFullYear(), endDateFull.getMonth(), endDateFull.getDate());
+      
+      const isExpiringSoon = endDate <= warningDate && endDate >= today;
+      const isExpired = endDate < today;
 
       if (isExpiringSoon) {
         const title = 'Peringatan Akreditasi';
