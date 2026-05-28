@@ -211,8 +211,6 @@ export const getSimulationByProdi = async (prodiId: string) => {
     },
   });
 
-  await generateEarlyWarnings(prodiId).catch(err => console.error('Failed to trigger early warnings after simulation update:', err));
-
   return {
     prodiId,
     indicators,
