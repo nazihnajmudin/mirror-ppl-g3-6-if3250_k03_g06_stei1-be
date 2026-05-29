@@ -76,7 +76,7 @@ const calculateIndicatorQuantitative = async (prodiId: string) => {
     return acc;
   }, {});
 
-  evidenDocs.forEach((doc) => {
+  evidenDocs.forEach((doc:{ indikator: unknown }) => {
     const indicators = Array.isArray(doc.indikator) ? doc.indikator : [];
     const processedInThisDoc = new Set<string>();
 
