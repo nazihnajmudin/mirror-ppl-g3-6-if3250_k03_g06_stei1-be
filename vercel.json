@@ -17,4 +17,4 @@
   ],
   "installCommand": "npm install",
   "buildCommand": "npx prisma generate"
-}
+} 
