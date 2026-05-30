@@ -195,7 +195,7 @@ export const createMultipleSheetsData = async (
       continue;
     }
 
-    let cleanedData = sheetData.filter((row) => {
+    let cleanedData: any[] = sheetData.filter((row) => {
       if (!row) return false;
 
       const hasHeaderArtifacts = Object.values(row).some(val => {
@@ -274,7 +274,7 @@ export const createMultipleSheetsData = async (
       } else if (cleanedData.length < requiredLength) {
         const kekurangan = requiredLength - cleanedData.length;
         for (let i = 0; i < kekurangan; i++) {
-          cleanedData.push({}); 
+          cleanedData.push({});
         }
       }
     }

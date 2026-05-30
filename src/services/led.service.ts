@@ -119,7 +119,7 @@ export const getAvailablePeriods = async (prodiId: string): Promise<string[]> =>
         distinct: ['periode'],
     });
 
-    const periods = new Set(docs.map((d) => d.periode));
+    const periods = new Set(docs.map((d) => d.periode).filter((p): p is string => p !== null));
 
     const akreditasi = await prisma.accreditationInfo.findUnique({
         where: { prodiId },
