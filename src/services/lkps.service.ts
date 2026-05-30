@@ -178,7 +178,7 @@ export const createMultipleSheetsData = async (
   });
 
   const { getSheetConfig } = await import('@/config/lkps.config');
-  const createdSheets = [];
+  const createdSheets: Awaited<ReturnType<typeof createLKPSSheetData>>[] = [];
 
   for (const [sheetName, sheetData] of Object.entries(parsedData)) {
     const sheetConfig = getSheetConfig(sheetName);
