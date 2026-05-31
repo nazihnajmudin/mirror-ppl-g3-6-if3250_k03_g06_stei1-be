@@ -509,3 +509,21 @@ export const importLKPS = async (
     timeout: 30000 // 30 seconds for large imports
   });
 };
+
+export const deleteLKPSDocument = async (documentId: string) => {
+  const doc = await prisma.documentLKPS.findUnique({
+    where: { id: documentId }
+  });
+
+  if (!doc) {
+    throw new Error('Dokumen tidak ditemukan');
+  }
+
+  if (doc.status === 'FINAL') {
+    throw new Error('Dokumen dengan status FINAL tidak dapat dihapus');
+  }
+
+  return await prisma.documentLKPS.delete({
+    where: { id: documentId }
+  });
+};

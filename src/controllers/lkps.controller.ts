@@ -1008,3 +1008,17 @@ export const getProdiFormatHandler = async (req: Request, res: Response) => {
     return errorResponse(res, 'Gagal mengambil format prodi', 500);
   }
 };
+
+export const deleteLKPSDocumentHandler = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    await lkpsService.deleteLKPSDocument(id);
+    return successResponse(res, null, 'Berhasil menghapus dokumen LKPS');
+  } catch (error: any) {
+    console.error('Error deleting LKPS:', error);
+    if (error.message.includes('FINAL')) {
+      return errorResponse(res, error.message, 400);
+    }
+    return errorResponse(res, 'Gagal menghapus dokumen LKPS', 500);
+  }
+};

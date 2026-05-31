@@ -18,6 +18,7 @@ import {
   finalizeLKPSDocumentHandler,
   toggleLKPSStatusHandler,
   getProdiFormatHandler,
+  deleteLKPSDocumentHandler,
 } from '../controllers/lkps.controller';
 import { authenticate, requireRole } from '../middlewares/auth.middleware';
 import { requireResourceAccess } from '../middlewares/resourceAccess.middleware';
@@ -59,6 +60,7 @@ router.put('/document/status/:id', requireResourceAccess('lkps_document', 'write
 // 4. Get/Update Single Document (Matches UUIDs, prioritized over history/export)
 router.get('/:id', requireResourceAccess('lkps_document', 'read', 'id'), getLKPSDocumentHandler);
 router.put('/:id', requireResourceAccess('lkps_document', 'write', 'id'), updateLKPSDocumentHandler);
+router.delete('/:id', requireResourceAccess('lkps_document', 'write', 'id'), deleteLKPSDocumentHandler);
 
 // 5. High priority fixed routes
 router.post('/preview', upload.single('file'), previewLKPSHandler);
