@@ -197,14 +197,14 @@ export const getSimulationByProdi = async (prodiId: string) => {
   const result = await prisma.accreditationSimulation.upsert({
     where: { prodiId },
     update: {
-      indicators: indicators as unknown as Prisma.InputJsonValue[],
+      indicators: indicators as unknown as any,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
     },
     create: {
       prodiId,
-      indicators: indicators as unknown as Prisma.InputJsonValue[],
+      indicators: indicators as unknown as any,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
@@ -264,14 +264,14 @@ export const updateSimulationQualitative = async (
   const result = await prisma.accreditationSimulation.upsert({
     where: { prodiId },
     update: {
-      indicators: mergedIndicators as unknown as Prisma.InputJsonValue[],
+      indicators: mergedIndicators as unknown as any,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
     },
     create: {
       prodiId,
-      indicators: mergedIndicators as unknown as Prisma.InputJsonValue[],
+      indicators: mergedIndicators as unknown as any,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
