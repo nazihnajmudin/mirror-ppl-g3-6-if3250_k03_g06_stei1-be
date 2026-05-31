@@ -3,7 +3,7 @@ import { successResponse, errorResponse } from '../utils/response';
 import { parseLKPSExcel } from '../parsers/lkps.parser';
 import * as lkpsService from '../services/lkps.service';
 import prisma from '../config/database.config';
-import { getSheetConfig, LKPS_SHEETS, getFormatFromProdiName, getSheetsByFormat, LKPSFormat } from '../config/lkps.config';
+import { getSheetConfig, LKPS_SHEETS, getSheetsByFormat, LKPSFormat } from '../config/lkps.config';
 import path from 'path';
 import fs from 'fs';
 
@@ -132,7 +132,7 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
 
     // Detect LKPS format from prodi name
     const prodi = await prisma.prodi.findUnique({ where: { id: targetProdiId } });
-    const lkpsFormat: LKPSFormat = prodi ? getFormatFromProdiName(prodi.fullname) : 'INFOKOM';
+    const lkpsFormat: LKPSFormat = (prodi?.category === 'INFOKOM') ? 'INFOKOM' : 'TEKNIK';
 
     let parsedData = {};
     try {
