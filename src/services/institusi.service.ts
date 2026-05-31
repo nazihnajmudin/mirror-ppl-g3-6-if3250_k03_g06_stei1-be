@@ -67,15 +67,17 @@ export const upsertAndSyncInstitusi = async (
         const mergedData = currentData.map((row) => {
           const uppsRow = uppsDataPayload.find((u) => u.no === row.no);
           if (uppsRow) {
-            return {
-              ...row,
-              ...uppsRow,
-            };
+            return { ...row, ...uppsRow };
           }
           return row;
         });
 
-        const finalDataToSave = currentData.length > 0 ? mergedData : uppsDataPayload;
+        // Temukan baris baru dari UPPS yang belum ada di LKPS
+        const newRows = uppsDataPayload.filter(
+          (u) => !currentData.some((row) => row.no === u.no)
+        );
+
+        const finalDataToSave = currentData.length > 0 ? [...mergedData, ...newRows] : uppsDataPayload;
 
         await prisma.lKPSSheetData.update({
           where: { id: sheet.id },

@@ -1,6 +1,6 @@
 import prisma from '../config/database.config';
 import { DocumentStatus } from '@prisma/client';
-import { LKPS_KRITERIA, getSheetConfig, LKPSFormat } from '@/config/lkps.config';
+import { LKPS_KRITERIA, getSheetConfig, LKPSFormat } from '../config/lkps.config';
 import { validateSheetData } from '../validators/lkps.validator';
 import { generateEarlyWarnings } from './notification.service';
 
@@ -178,7 +178,7 @@ export const createMultipleSheetsData = async (
     criteriaByCodes[c.criteriaCode] = c;
   });
 
-  const { getSheetConfig: _getSheetConfig } = await import('@/config/lkps.config');
+  // dynamically imported config removed to fix runtime path resolution
   const createdSheets: any[] = [];
 
   for (const [sheetName, sheetData] of Object.entries(parsedData)) {
@@ -199,22 +199,33 @@ export const createMultipleSheetsData = async (
     let cleanedData: any[] = sheetData.filter((row) => {
       if (!row) return false;
 
+      const nonEmptyVals = Object.values(row).filter(v => v !== null && v !== undefined && String(v).trim() !== '');
+      if (nonEmptyVals.length === 0) return false;
+      
+      // If a row only has 1 column filled, it's almost certainly a footer/legend, not a valid data row
+      if (nonEmptyVals.length === 1 && sheetConfig.rowType === 'free') {
+        return false;
+      }
+
       const hasHeaderArtifacts = Object.values(row).some(val => {
         if (typeof val === 'string') {
           const text = val.toLowerCase().replace(/\s+/g, '');
+          if (!text) return false;
 
-          return text === 'jumlah' || 
-                 text === 'total' || 
-                 text === 'ratarata' || 
-                 text === 'rata-rata' ||
-                 text === '(a)' || 
-                 text === '(b)' || 
-                 text === '(c)' ||
-                 text.includes('jumlahmahasiswa') ||
-                 text.includes('dalamsemester') ||
-                 text.includes('≤ms≤') ||
-                 text.includes('<ms≤') ||
-                 text.includes('ms>');
+          const isLegendPrefix = 
+            text === 'jumlah' || text === 'total' || text === 'ratarata' || text === 'rata-rata' ||
+            text === '(a)' || text === '(b)' || text === '(c)' || text === 'info' || text === 'no.' || text === 'no' ||
+            text.startsWith('jp=') || text.startsWith('jb=') || text.startsWith('ni=') || text.startsWith('nw=') ||
+            text.startsWith('nd=') || text.startsWith('nk=') || text.startsWith('na=') || text.startsWith('nb=') ||
+            text.startsWith('nc=') || text.startsWith('keterangan') || text.startsWith('catatan') || text.startsWith('*') ||
+            text.includes('khususuntuk') || text.includes('judulpenelitian') || text.includes('jumlahmahasiswa') ||
+            text.includes('dalamsemester') || text.includes('≤ms≤') || text.includes('<ms≤') || text.includes('ms>');
+            
+          // If it matches a legend prefix AND the row has <= 3 non-empty columns, it's definitely a legend
+          if (isLegendPrefix && nonEmptyVals.length <= 3) return true;
+          
+          // Absolute matches that are always skipped
+          if (['jumlah', 'total', 'ratarata', 'rata-rata', 'no.', 'no'].includes(text)) return true;
         }
         return false;
       });
@@ -226,6 +237,14 @@ export const createMultipleSheetsData = async (
         if (/^(I{1,3}|IV|V|VI{0,3}|IX|X|[A-Z])$/.test(noVal)) {
           return false; 
         }
+      }
+
+      // Check for LKPS sub-header numbering row (e.g., 1, 2, 3, 4, 5...) or (1), (2), (3)...
+      const vals = Object.values(row)
+        .filter(v => v !== '' && v !== null && v !== undefined)
+        .map(v => String(v).replace(/[()]/g, '').trim());
+      if (vals.length >= 3 && vals[0] === '1' && vals[1] === '2' && vals[2] === '3') {
+        return false;
       }
 
       return Object.values(row).some((val) => {

@@ -58,6 +58,7 @@ export const previewLKPSHandler = async (req: Request, res: Response) => {
     return successResponse(res, data, 'Berhasil memparsing file LKPS');
   } catch (error: any) {
     console.error('Error previewing LKPS:', error);
+    try { require('fs').appendFileSync('debug-error.log', new Date().toISOString() + ' PREVIEW ERROR\\n' + (error.stack || error.message || String(error)) + '\\n\\n'); } catch (e) {}
     return errorResponse(res, 'Gagal memparsing file LKPS', 500);
   }
 };
@@ -161,6 +162,7 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
     return successResponse(res, fullDocument, 'LKPS berhasil diupload dan disimpan', 201);
   } catch (error: any) {
     console.error('Error uploading LKPS:', error);
+    try { require('fs').appendFileSync('debug-error.log', new Date().toISOString() + '\\n' + (error.stack || error.message || String(error)) + '\\n\\n'); } catch (e) {}
     if (error.message?.includes('Validasi')) {
       return errorResponse(res, error.message, 400);
     }
@@ -407,11 +409,25 @@ export const exportLKPSHandler = async (req: Request, res: Response) => {
         const { storageProvider } = await import('../utils/storage');
         const buffer = await storageProvider.downloadFile(document.filePath, 'lkps');
         
+        // Remove password protection from the original uploaded file
+        const ExcelJS = require('exceljs');
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+        workbook.eachSheet((sheet: any) => {
+          if (sheet.properties) {
+            delete sheet.properties.sheetProtection;
+          }
+          if (sheet.views) {
+            sheet.views = sheet.views.map((view: any) => ({ ...view, state: 'normal' }));
+          }
+        });
+        const unprotectedBuffer = await workbook.xlsx.writeBuffer();
+        
         const encodedName = encodeURIComponent(document.originalFilename || 'LKPS.xlsx');
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedName}`);
         
-        return res.send(buffer);
+        return res.send(unprotectedBuffer);
       } catch (storageError) {
         console.warn('File fisik LKPS tidak ditemukan di storage, mencoba generate ulang dari JSON...', storageError);
       }
