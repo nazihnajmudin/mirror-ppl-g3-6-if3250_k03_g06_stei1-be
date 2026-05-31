@@ -261,7 +261,7 @@ model DataInstitusi {
   updatedAt DateTime @updatedAt
 
   // Mencegah duplikasi data untuk sheet dan periode yang sama
-  @@unique([periode, sheetName])
+  @@unique([periode, sheetName, prodiId])
 }
 
 model Notification {
