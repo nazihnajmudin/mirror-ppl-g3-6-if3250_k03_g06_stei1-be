@@ -1,6 +1,6 @@
 import prisma from '../config/database.config';
 import { DocumentStatus } from '@prisma/client';
-import { LKPS_KRITERIA } from '@/config/lkps.config';
+import { LKPS_KRITERIA, getSheetConfig, LKPSFormat } from '@/config/lkps.config';
 import { validateSheetData } from '../validators/lkps.validator';
 import { generateEarlyWarnings } from './notification.service';
 
@@ -165,7 +165,8 @@ export const createLKPSSheetData = async (
 export const createMultipleSheetsData = async (
   documentId: string,
   parsedData: Record<string, any[]>,
-  tx?: any
+  tx?: any,
+  format?: LKPSFormat
 ) => {
   const client = tx || prisma;
   const criterias = await client.lKPSCriteria.findMany({
@@ -177,11 +178,11 @@ export const createMultipleSheetsData = async (
     criteriaByCodes[c.criteriaCode] = c;
   });
 
-  const { getSheetConfig } = await import('@/config/lkps.config');
+  const { getSheetConfig: _getSheetConfig } = await import('@/config/lkps.config');
   const createdSheets: any[] = [];
 
   for (const [sheetName, sheetData] of Object.entries(parsedData)) {
-    const sheetConfig = getSheetConfig(sheetName);
+    const sheetConfig = getSheetConfig(sheetName, format);
     if (!sheetConfig) {
       console.warn(`Sheet config not found for ${sheetName}`);
       continue;
@@ -481,7 +482,8 @@ export const importLKPS = async (
   name: string,
   filePath: string,
   originalFilename: string,
-  periode: string
+  periode: string,
+  format?: LKPSFormat
 ) => {
   return await prisma.$transaction(async (tx: any) => {
     // 1. Create Document
@@ -498,8 +500,8 @@ export const importLKPS = async (
     // 2. Create Criterias
     await createAllLKPSCriteria(document.id, tx);
 
-    // 3. Create Sheet Data
-    await createMultipleSheetsData(document.id, parsedData, tx);
+    // 3. Create Sheet Data (format-aware)
+    await createMultipleSheetsData(document.id, parsedData, tx, format);
 
     generateEarlyWarnings(prodiId).catch(err => console.error('Failed to trigger early warnings after LKPS import:', err));
     return document;

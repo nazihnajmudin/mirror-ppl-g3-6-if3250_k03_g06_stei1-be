@@ -3,7 +3,7 @@ import { successResponse, errorResponse } from '../utils/response';
 import { parseLKPSExcel } from '../parsers/lkps.parser';
 import * as lkpsService from '../services/lkps.service';
 import prisma from '../config/database.config';
-import { getSheetConfig, LKPS_SHEETS } from '../config/lkps.config';
+import { getSheetConfig, LKPS_SHEETS, getFormatFromProdiName, getSheetsByFormat, LKPSFormat } from '../config/lkps.config';
 import path from 'path';
 import fs from 'fs';
 
@@ -130,9 +130,13 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
       return errorResponse(res, 'File atau Program studi tidak ditemukan', 400);
     }
 
+    // Detect LKPS format from prodi name
+    const prodi = await prisma.prodi.findUnique({ where: { id: targetProdiId } });
+    const lkpsFormat: LKPSFormat = prodi ? getFormatFromProdiName(prodi.fullname) : 'INFOKOM';
+
     let parsedData = {};
     try {
-      parsedData = await parseLKPSExcel(file.buffer);
+      parsedData = await parseLKPSExcel(file.buffer, lkpsFormat);
     } catch (parseError) {
       console.error('Failed to parse LKPS content on confirm:', parseError);
       return errorResponse(res, 'Gagal memparsing file LKPS', 400);
@@ -148,7 +152,8 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
       name || `LKPS - ${originalFilename}`, 
       savedFilename,
       originalFilename,
-      periode?.toString()
+      periode?.toString(),
+      lkpsFormat
     );
 
     const fullDocument = await lkpsService.getLKPSDocumentById(document.id);
@@ -641,8 +646,9 @@ export const completeSheetHandler = async (req: Request, res: Response) => {
 export const getSheetConfigHandler = async (req: Request, res: Response) => {
   try {
     const sheetName = req.params.sheetName as string;
+    const format = (req.query.format as LKPSFormat) || 'INFOKOM';
     
-    const config = getSheetConfig(sheetName);
+    const config = getSheetConfig(sheetName, format);
     if (!config) {
       return errorResponse(res, `Sheet "${sheetName}" tidak ditemukan`, 404);
     }
@@ -972,5 +978,33 @@ export const toggleLKPSStatusHandler = async (req: Request, res: Response) => {
     return successResponse(res, updated, `Dokumen berhasil diubah menjadi ${status}`);
   } catch (error: any) {
     return errorResponse(res, error.message, 500);
+  }
+};
+
+/**
+ * Get LKPS format (INFOKOM | TEKNIK) for a prodi based on its category
+ */
+export const getProdiFormatHandler = async (req: Request, res: Response) => {
+  try {
+    const prodiId = req.params.prodiId as string;
+    
+    // Validate that user has access to this prodi (handled by middleware)
+    
+    const prodi = await prisma.prodi.findUnique({
+      where: { id: prodiId },
+      select: { category: true, fullname: true }
+    });
+    
+    if (!prodi) {
+      return errorResponse(res, 'Prodi tidak ditemukan', 404);
+    }
+    
+    // Valid categories are INFOKOM and TEKNIK
+    const format = (prodi.category === 'INFOKOM') ? 'INFOKOM' : 'TEKNIK';
+    
+    return successResponse(res, { format, prodiName: prodi.fullname }, 'Berhasil mendapatkan format prodi');
+  } catch (error: any) {
+    console.error('Error getting prodi format:', error);
+    return errorResponse(res, 'Gagal mengambil format prodi', 500);
   }
 };

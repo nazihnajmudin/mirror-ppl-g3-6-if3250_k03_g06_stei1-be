@@ -13,6 +13,7 @@ model Prodi {
   fullname              String                   @unique
   abbreviation          String?
   degree                String?
+  category              String                   @default("TEKNIK")
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
   accreditation         AccreditationInfo?

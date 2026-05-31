@@ -17,6 +17,7 @@ import {
   saveLKPSDocumentAsDraftHandler,
   finalizeLKPSDocumentHandler,
   toggleLKPSStatusHandler,
+  getProdiFormatHandler,
 } from '../controllers/lkps.controller';
 import { authenticate, requireRole } from '../middlewares/auth.middleware';
 import { requireResourceAccess } from '../middlewares/resourceAccess.middleware';
@@ -41,6 +42,7 @@ router.use(authenticate);
 // 1. Helper routes (get config, sheets by program, etc) - BEFORE specific ID routes
 router.get('/config/:sheetName', getSheetConfigHandler);
 router.get('/sheets-by-program/:programType', getSheetsByProgramHandler);
+router.get('/format/:prodiId', requireResourceAccess('prodi', 'read', 'prodiId'), getProdiFormatHandler);
 router.get('/document/:documentId/sheets', requireResourceAccess('lkps_document', 'read', 'documentId'), getDocumentSheetsHandler);
 
 // 2. Sheet-level operations (must be before document routes to avoid conflicts)

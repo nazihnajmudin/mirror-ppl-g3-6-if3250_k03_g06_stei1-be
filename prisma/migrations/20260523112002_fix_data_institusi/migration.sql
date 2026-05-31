@@ -1,5 +1,5 @@
 -- DropIndex
-DROP INDEX "DataInstitusi_periode_sheetName_prodiId_key";
+DROP INDEX IF EXISTS "DataInstitusi_periode_sheetName_prodiId_key";
 
 -- DropIndex
-DROP INDEX "DataInstitusi_prodiId_idx";
+DROP INDEX IF EXISTS "DataInstitusi_prodiId_idx";
