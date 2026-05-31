@@ -130,20 +130,6 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
       return errorResponse(res, 'File atau Program studi tidak ditemukan', 400);
     }
 
-    const uploadDir = path.join(process.cwd(), 'uploads', 'lkps');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
-    const originalFilename = file.originalname;
-    const fileExt = path.extname(originalFilename);
-    const uniqueFilename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${fileExt}`;
-    const filePath = path.join('uploads', 'lkps', uniqueFilename);
-    const fullPath = path.join(process.cwd(), filePath);
-    
-    fs.writeFileSync(fullPath, file.buffer);
-
-    // Parse the file to get data
     let parsedData = {};
     try {
       parsedData = await parseLKPSExcel(file.buffer);
@@ -152,29 +138,93 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
       return errorResponse(res, 'Gagal memparsing file LKPS', 400);
     }
 
-    // Import LKPS in a single transaction
+    const { storageProvider } = await import('../utils/storage');
+    const savedFilename = await storageProvider.upload(file, 'lkps');
+    const originalFilename = file.originalname;
+
     const document = await lkpsService.importLKPS(
       targetProdiId, 
       parsedData, 
       name || `LKPS - ${originalFilename}`, 
-      filePath, 
+      savedFilename,
       originalFilename,
       periode?.toString()
     );
 
-    // Return created document with all related data
     const fullDocument = await lkpsService.getLKPSDocumentById(document.id);
     
     return successResponse(res, fullDocument, 'LKPS berhasil diupload dan disimpan', 201);
   } catch (error: any) {
     console.error('Error uploading LKPS:', error);
-    // Check if error is validation error
     if (error.message?.includes('Validasi')) {
       return errorResponse(res, error.message, 400);
     }
     return errorResponse(res, 'Gagal mengupload LKPS', 500);
   }
 };
+// export const confirmLKPSHandler = async (req: Request, res: Response) => {
+//   try {
+//     const { prodiId, name, periode } = req.body;
+//     const file = req.file;
+    
+//     let targetProdiId = (prodiId as string) || (req.user as any)?.prodiId;
+
+//     if (!targetProdiId && (req.user as any)?.role === 'SUPER_ADMIN') {
+//       const firstProdi = await prisma.prodi.findFirst();
+//       if (firstProdi) {
+//         targetProdiId = firstProdi.id;
+//       }
+//     }
+
+//     if (!targetProdiId || !file) {
+//       return errorResponse(res, 'File atau Program studi tidak ditemukan', 400);
+//     }
+
+//     const uploadDir = path.join(process.cwd(), 'uploads', 'lkps');
+//     if (!fs.existsSync(uploadDir)) {
+//       fs.mkdirSync(uploadDir, { recursive: true });
+//     }
+
+//     const originalFilename = file.originalname;
+//     const fileExt = path.extname(originalFilename);
+//     const uniqueFilename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${fileExt}`;
+//     const filePath = path.join('uploads', 'lkps', uniqueFilename);
+//     const fullPath = path.join(process.cwd(), filePath);
+    
+//     fs.writeFileSync(fullPath, file.buffer);
+
+//     // Parse the file to get data
+//     let parsedData = {};
+//     try {
+//       parsedData = await parseLKPSExcel(file.buffer);
+//     } catch (parseError) {
+//       console.error('Failed to parse LKPS content on confirm:', parseError);
+//       return errorResponse(res, 'Gagal memparsing file LKPS', 400);
+//     }
+
+//     // Import LKPS in a single transaction
+//     const document = await lkpsService.importLKPS(
+//       targetProdiId, 
+//       parsedData, 
+//       name || `LKPS - ${originalFilename}`, 
+//       filePath, 
+//       originalFilename,
+//       periode?.toString()
+//     );
+
+//     // Return created document with all related data
+//     const fullDocument = await lkpsService.getLKPSDocumentById(document.id);
+    
+//     return successResponse(res, fullDocument, 'LKPS berhasil diupload dan disimpan', 201);
+//   } catch (error: any) {
+//     console.error('Error uploading LKPS:', error);
+//     // Check if error is validation error
+//     if (error.message?.includes('Validasi')) {
+//       return errorResponse(res, error.message, 400);
+//     }
+//     return errorResponse(res, 'Gagal mengupload LKPS', 500);
+//   }
+// };
 
 /**
  * @swagger
@@ -348,11 +398,17 @@ export const exportLKPSHandler = async (req: Request, res: Response) => {
     }
 
     if (document.filePath) {
-      const fullPath = path.join(process.cwd(), document.filePath);
-      if (fs.existsSync(fullPath)) {
+      try {
+        const { storageProvider } = await import('../utils/storage');
+        const buffer = await storageProvider.downloadFile(document.filePath, 'lkps');
+        
+        const encodedName = encodeURIComponent(document.originalFilename || 'LKPS.xlsx');
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="${document.originalFilename || 'LKPS.xlsx'}"`);
-        return res.sendFile(fullPath);
+        res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedName}`);
+        
+        return res.send(buffer);
+      } catch (storageError) {
+        console.warn('File fisik LKPS tidak ditemukan di storage, mencoba generate ulang dari JSON...', storageError);
       }
     }
 
@@ -363,8 +419,9 @@ export const exportLKPSHandler = async (req: Request, res: Response) => {
     const { generateLKPSExcel } = require('../exporters/lkps.exporter');
     const buffer = await generateLKPSExcel(document.content);
     
+    const encodedName = encodeURIComponent(`LKPS_${document.prodi?.abbreviation || 'Export'}.xlsx`);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="LKPS_${document.prodi?.abbreviation || 'Export'}.xlsx"`);
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedName}`);
     
     return res.send(buffer);
   } catch (error: any) {
@@ -372,6 +429,40 @@ export const exportLKPSHandler = async (req: Request, res: Response) => {
     return errorResponse(res, 'Gagal mengekspor LKPS', 500);
   }
 };
+// export const exportLKPSHandler = async (req: Request, res: Response) => {
+//   try {
+//     const id = req.params.id as string;
+//     const document = await lkpsService.getLKPSDocumentById(id) as any;
+
+//     if (!document) {
+//       return errorResponse(res, 'Dokumen tidak ditemukan', 404);
+//     }
+
+//     if (document.filePath) {
+//       const fullPath = path.join(process.cwd(), document.filePath);
+//       if (fs.existsSync(fullPath)) {
+//         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+//         res.setHeader('Content-Disposition', `attachment; filename="${document.originalFilename || 'LKPS.xlsx'}"`);
+//         return res.sendFile(fullPath);
+//       }
+//     }
+
+//     if (!document.content) {
+//       return errorResponse(res, 'Data dokumen tidak lengkap', 404);
+//     }
+
+//     const { generateLKPSExcel } = require('../exporters/lkps.exporter');
+//     const buffer = await generateLKPSExcel(document.content);
+    
+//     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+//     res.setHeader('Content-Disposition', `attachment; filename="LKPS_${document.prodi?.abbreviation || 'Export'}.xlsx"`);
+    
+//     return res.send(buffer);
+//   } catch (error: any) {
+//     console.error('Error exporting LKPS:', error);
+//     return errorResponse(res, 'Gagal mengekspor LKPS', 500);
+//   }
+// };
 
 /**
  * @swagger
