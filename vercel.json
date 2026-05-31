@@ -15,6 +15,5 @@
       "dest": "src/server.ts"
     }
   ],
-  "installCommand": "npm install",
-  "buildCommand": "npx prisma generate"
+  "installCommand": "npm install && npx prisma generate"
 } 
