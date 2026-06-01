@@ -17,19 +17,20 @@ cache:
   paths:
     - node_modules/
 
-build-job:
+build-backend:
   stage: build
   image: node:20-alpine
   tags:
     - docker
   script:
+    - cd if3250_k03_g06_stei1-be
     - npm ci
   artifacts:
-    expire_in: 30 mins
+    expire_in: 1 hour
     paths:
-      - node_modules/
+      - if3250_k03_g06_stei1-be/node_modules/
 
-run_tests:
+test-backend:
   stage: test
   image: node:20-alpine
   tags:
@@ -37,33 +38,42 @@ run_tests:
   services:
     - postgres:15-alpine
   variables:
-    POSTGRES_DB: akreditasi_stei
-    POSTGRES_USER: admin
-    POSTGRES_PASSWORD: password123
-    DATABASE_URL: postgresql://admin:password123@postgres:5432/akreditasi_stei
+    POSTGRES_DB: stei_akreditasi
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    DATABASE_URL: postgresql://postgres:postgres@postgres:5432/stei_akreditasi
   script:
+    - cd if3250_k03_g06_stei1-be
+    - npm ci
     - npx prisma generate
-    - npx jest --passWithNoTests
+    - npx jest --runInBand
 
-migrate_database:
+migrate-database:
   stage: staging
   image: node:20-alpine
   tags:
     - docker
   script:
+    - cd if3250_k03_g06_stei1-be
     - npm ci
     - npx prisma generate
     - npx prisma migrate deploy
+  environment:
+    name: staging
   only:
     - develop
 
-deploy-job:
+# ==================== DEPLOY JOBS ====================
+
+deploy-production:
   stage: deploy
   image: docker:24.0.5
   tags:
     - docker
-  environment: production
+  environment:
+    name: production
   script:
+    - cd if3250_k03_g06_stei1-be
     - docker compose up -d --build
   only:
     - main

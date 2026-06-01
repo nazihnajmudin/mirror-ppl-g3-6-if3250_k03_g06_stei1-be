@@ -110,7 +110,7 @@ describe('Penugasan Service - Unit Test', () => {
         where: { userId_prodiId: { userId: "user-1", prodiId: "prodi-1" } }
       });
       expect(prisma.prodiAssignment.create).toHaveBeenCalledWith({
-        data: { userId: "user-1", prodiId: "prodi-1" },
+        data: { userId: "user-1", prodiId: "prodi-1", kriteria: [] },
         select: expect.any(Object),
       });
       expect(result).toEqual(mockAssignmentData);

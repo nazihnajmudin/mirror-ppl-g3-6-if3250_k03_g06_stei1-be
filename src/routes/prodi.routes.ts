@@ -10,9 +10,11 @@ import {
   getCertificateFileHandler,
   getDashboardByProdiHandler,
   updateDashboardByProdiHandler,
+  getInstitusiDashboardSummaryHandler,
 } from '../controllers/prodi.controller';
 import { authenticate, requireRole } from '../middlewares/auth.middleware';
 import { requireProdiAccess } from '../middlewares/prodi.middleware';
+import { requireResourceAccess } from '../middlewares/resourceAccess.middleware';
 import { validate } from '../middlewares/validate.middleware';
 import { uploadCertificateMiddleware } from '../middlewares/upload.middleware';
 import { Role } from '@prisma/client';
@@ -38,45 +40,51 @@ router.get(
 );
 
 router.get(
+  '/dashboard/summary',
+  requireRole(Role.SUPER_ADMIN, Role.PIMPINAN),
+  getInstitusiDashboardSummaryHandler
+);
+
+router.get(
   '/:id',
-  requireRole(Role.SUPER_ADMIN, Role.PIMPINAN, Role.KAPRODI, Role.TIM_PRODI),
+  requireResourceAccess('prodi', 'read', 'id'),
   getProdiByIdHandler
 );
 
 router.put(
   '/:id',
-  requireRole(Role.SUPER_ADMIN, Role.KAPRODI),
+  requireResourceAccess('prodi', 'write', 'id'),
   validate(updateProdiSchema),
   updateProdiHandler
 );
 
 router.get(
   '/:id/accreditation',
-  requireRole(Role.SUPER_ADMIN, Role.PIMPINAN, Role.KAPRODI, Role.TIM_PRODI),
+  requireResourceAccess('prodi', 'read', 'id'),
   getAccreditationHandler
 );
 
 router.put(
   '/:id/accreditation',
-  requireRole(Role.SUPER_ADMIN, Role.KAPRODI),
+  requireResourceAccess('prodi', 'write', 'id'),
   validate(upsertAccreditationSchema),
   upsertAccreditationHandler
 );
 
 router.post(
   '/:id/accreditation/certificate',
-  requireRole(Role.SUPER_ADMIN, Role.KAPRODI),
+  requireResourceAccess('prodi', 'write', 'id'),
   uploadCertificateMiddleware.single('file'),
   uploadCertificateHandler
 );
 
 router.get(
   '/:id/accreditation/certificate',
-  requireRole(Role.SUPER_ADMIN, Role.PIMPINAN, Role.KAPRODI, Role.TIM_PRODI),
+  requireResourceAccess('prodi', 'read', 'id'),
   getCertificateFileHandler
 );
 
-router.get('/:prodiId/dashboard', requireProdiAccess('read'), getDashboardByProdiHandler);
-router.put('/:prodiId/dashboard', requireProdiAccess('write'), validate(updateDashboardSchema), updateDashboardByProdiHandler);
+router.get('/:prodiId/dashboard', requireResourceAccess('prodi', 'read', 'prodiId'), getDashboardByProdiHandler);
+router.put('/:prodiId/dashboard', requireResourceAccess('prodi', 'write', 'prodiId'), validate(updateDashboardSchema), updateDashboardByProdiHandler);
 
 export default router;

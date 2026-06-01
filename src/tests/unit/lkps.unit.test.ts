@@ -7,6 +7,7 @@ jest.mock('../../config/database.config', () => ({
     create: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
   },
   prodi: {
     findUnique: jest.fn(),
@@ -60,6 +61,7 @@ describe('LKPS Service - Unit Test', () => {
           filePath: "/uploads/lkps/test.xlsx",
           originalFilename: "test.xlsx",
           periode: "2024",
+          versi: 1,
         },
       });
       expect(result).toEqual(mockDocumentData);
@@ -68,14 +70,14 @@ describe('LKPS Service - Unit Test', () => {
     it('harus menggunakan nama default jika tidak disediakan', async () => {
       (prisma.documentLKPS.create as jest.Mock).mockResolvedValue({
         ...mockDocumentData,
-        name: "LKPS 2024"
+        name: "LKPS 2024 - Versi 1"
       });
 
       await lkpsService.createLKPSDocument("prodi-1", { test: "data" }, undefined, undefined, undefined, "2024");
 
       expect(prisma.documentLKPS.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          name: "LKPS 2024",
+          name: "LKPS 2024 - Versi 1",
         }),
       });
     });
@@ -112,7 +114,14 @@ describe('LKPS Service - Unit Test', () => {
 
       expect(prisma.documentLKPS.findUnique).toHaveBeenCalledWith({
         where: { id: "doc-1" },
-        include: { prodi: true },
+        include: {
+          prodi: true,
+          criterias: {
+            include: {
+              sheets: true,
+            },
+          },
+        },
       });
       expect(result).toEqual({
         ...mockDocumentData,

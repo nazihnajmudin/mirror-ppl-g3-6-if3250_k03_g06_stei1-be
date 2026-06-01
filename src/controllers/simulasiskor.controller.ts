@@ -8,7 +8,7 @@ export const getSimulationByProdiHandler = async (req: Request, res: Response) =
     const simulation = await simulasiskorService.getSimulationByProdi(prodiId);
     successResponse(res, simulation, 'Simulasi skor akreditasi berhasil diambil');
   } catch (err: any) {
-    const status = err.message?.includes('tidak ditemukan') ? 404 : 400;
+    const status = err.message?.includes('tidak ditemukan') ? 404 : 500;
     errorResponse(res, err.message || 'Gagal mengambil simulasi skor akreditasi', status);
   }
 };
@@ -26,7 +26,7 @@ export const updateSimulationQualitativeHandler = async (req: Request, res: Resp
     const simulation = await simulasiskorService.updateSimulationQualitative(prodiId, qualitativeScores);
     successResponse(res, simulation, 'Skor kualitatif simulasi akreditasi berhasil disimpan');
   } catch (err: any) {
-    const status = err.message?.includes('tidak ditemukan') ? 404 : 400;
-    errorResponse(res, err.message || 'Gagal menyimpan skor kualitatif', status);
+    const status = err.message?.includes('tidak ditemukan') ? 404 : 500;
+    errorResponse(res, err.message || 'Gagal mengupdate skor kualitatif', status);
   }
 };

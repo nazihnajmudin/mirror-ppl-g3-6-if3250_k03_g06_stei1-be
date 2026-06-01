@@ -1,7 +1,8 @@
 import prisma from '../config/database.config';
 import { DocumentStatus } from '@prisma/client';
-import { LKPS_KRITERIA } from '@/config/lkps.config';
+import { LKPS_KRITERIA, getSheetConfig, LKPSFormat } from '../config/lkps.config';
 import { validateSheetData } from '../validators/lkps.validator';
+import { generateEarlyWarnings } from './notification.service';
 
 export const createLKPSDocument = async (
   prodiId: string,
@@ -9,9 +10,11 @@ export const createLKPSDocument = async (
   name?: string,
   filePath?: string,
   originalFilename?: string,
-  periode?: string
+  periode?: string,
+  tx?: any
 ) => {
-  const latestDoc = await prisma.documentLKPS.findFirst({
+  const client = tx || prisma;
+  const latestDoc = await client.documentLKPS.findFirst({
     where: { 
       prodiId, 
       periode 
@@ -23,7 +26,7 @@ export const createLKPSDocument = async (
 
   const newVersi = latestDoc ? latestDoc.versi + 1 : 1;
 
-  return await prisma.documentLKPS.create({
+  return await client.documentLKPS.create({
     data: {
       prodiId,
       content,
@@ -90,9 +93,11 @@ export const createLKPSCriteria = async (
   criteriaCode: string,
   criteriaName: string,
   subCriteriaCode?: string | null,
-  subCriteriaName?: string | null
+  subCriteriaName?: string | null,
+  tx?: any
 ) => {
-  return await prisma.lKPSCriteria.create({
+  const client = tx || prisma;
+  return await client.lKPSCriteria.create({
     data: {
       documentId,
       criteriaCode,
@@ -107,7 +112,7 @@ export const createLKPSCriteria = async (
 /**
  * Create all 7 LKPS Kriteria for a document
  */
-export const createAllLKPSCriteria = async (documentId: string) => {
+export const createAllLKPSCriteria = async (documentId: string, tx?: any) => {
   const kriteriaIds: Record<string, string> = {};
   
   for (const [code, kriteriaInfo] of Object.entries(LKPS_KRITERIA)) {
@@ -116,7 +121,8 @@ export const createAllLKPSCriteria = async (documentId: string) => {
       code,
       kriteriaInfo.name,
       null,
-      null
+      null,
+      tx
     );
     kriteriaIds[code] = created.id;
   }
@@ -131,14 +137,16 @@ export const createLKPSSheetData = async (
   criteriaId: string,
   sheetName: string,
   sheetTitle: string,
-  data: any[]
+  data: any[],
+  tx?: any
 ) => {
+  const client = tx || prisma;
   const validation = validateSheetData(sheetName, data);
   if (!validation.valid) {
     throw new Error(`Validasi data sheet "${sheetName}" gagal:\n${validation.errors.join('\n')}`);
   }
 
-  return await prisma.lKPSSheetData.create({
+  return await client.lKPSSheetData.create({
     data: {
       criteriaId,
       sheetName,
@@ -156,22 +164,25 @@ export const createLKPSSheetData = async (
  */
 export const createMultipleSheetsData = async (
   documentId: string,
-  parsedData: Record<string, any[]>
+  parsedData: Record<string, any[]>,
+  tx?: any,
+  format?: LKPSFormat
 ) => {
-  const criterias = await prisma.lKPSCriteria.findMany({
+  const client = tx || prisma;
+  const criterias = await client.lKPSCriteria.findMany({
     where: { documentId },
   });
 
   const criteriaByCodes: Record<string, any> = {};
-  criterias.forEach(c => {
+  criterias.forEach((c: any) => {
     criteriaByCodes[c.criteriaCode] = c;
   });
 
-  const { getSheetConfig } = await import('@/config/lkps.config');
-  const createdSheets = [];
+  // dynamically imported config removed to fix runtime path resolution
+  const createdSheets: any[] = [];
 
   for (const [sheetName, sheetData] of Object.entries(parsedData)) {
-    const sheetConfig = getSheetConfig(sheetName);
+    const sheetConfig = getSheetConfig(sheetName, format);
     if (!sheetConfig) {
       console.warn(`Sheet config not found for ${sheetName}`);
       continue;
@@ -185,25 +196,36 @@ export const createMultipleSheetsData = async (
       continue;
     }
 
-    let cleanedData = sheetData.filter((row) => {
+    let cleanedData: any[] = sheetData.filter((row) => {
       if (!row) return false;
+
+      const nonEmptyVals = Object.values(row).filter(v => v !== null && v !== undefined && String(v).trim() !== '');
+      if (nonEmptyVals.length === 0) return false;
+      
+      // If a row only has 1 column filled, it's almost certainly a footer/legend, not a valid data row
+      if (nonEmptyVals.length === 1 && sheetConfig.rowType === 'free') {
+        return false;
+      }
 
       const hasHeaderArtifacts = Object.values(row).some(val => {
         if (typeof val === 'string') {
           const text = val.toLowerCase().replace(/\s+/g, '');
+          if (!text) return false;
 
-          return text === 'jumlah' || 
-                 text === 'total' || 
-                 text === 'ratarata' || 
-                 text === 'rata-rata' ||
-                 text === '(a)' || 
-                 text === '(b)' || 
-                 text === '(c)' ||
-                 text.includes('jumlahmahasiswa') ||
-                 text.includes('dalamsemester') ||
-                 text.includes('≤ms≤') ||
-                 text.includes('<ms≤') ||
-                 text.includes('ms>');
+          const isLegendPrefix = 
+            text === 'jumlah' || text === 'total' || text === 'ratarata' || text === 'rata-rata' ||
+            text === '(a)' || text === '(b)' || text === '(c)' || text === 'info' || text === 'no.' || text === 'no' ||
+            text.startsWith('jp=') || text.startsWith('jb=') || text.startsWith('ni=') || text.startsWith('nw=') ||
+            text.startsWith('nd=') || text.startsWith('nk=') || text.startsWith('na=') || text.startsWith('nb=') ||
+            text.startsWith('nc=') || text.startsWith('keterangan') || text.startsWith('catatan') || text.startsWith('*') ||
+            text.includes('khususuntuk') || text.includes('judulpenelitian') || text.includes('jumlahmahasiswa') ||
+            text.includes('dalamsemester') || text.includes('≤ms≤') || text.includes('<ms≤') || text.includes('ms>');
+            
+          // If it matches a legend prefix AND the row has <= 3 non-empty columns, it's definitely a legend
+          if (isLegendPrefix && nonEmptyVals.length <= 3) return true;
+          
+          // Absolute matches that are always skipped
+          if (['jumlah', 'total', 'ratarata', 'rata-rata', 'no.', 'no'].includes(text)) return true;
         }
         return false;
       });
@@ -215,6 +237,14 @@ export const createMultipleSheetsData = async (
         if (/^(I{1,3}|IV|V|VI{0,3}|IX|X|[A-Z])$/.test(noVal)) {
           return false; 
         }
+      }
+
+      // Check for LKPS sub-header numbering row (e.g., 1, 2, 3, 4, 5...) or (1), (2), (3)...
+      const vals = Object.values(row)
+        .filter(v => v !== '' && v !== null && v !== undefined)
+        .map(v => String(v).replace(/[()]/g, '').trim());
+      if (vals.length >= 3 && vals[0] === '1' && vals[1] === '2' && vals[2] === '3') {
+        return false;
       }
 
       return Object.values(row).some((val) => {
@@ -264,7 +294,7 @@ export const createMultipleSheetsData = async (
       } else if (cleanedData.length < requiredLength) {
         const kekurangan = requiredLength - cleanedData.length;
         for (let i = 0; i < kekurangan; i++) {
-          cleanedData.push({}); 
+          cleanedData.push({});
         }
       }
     }
@@ -273,7 +303,8 @@ export const createMultipleSheetsData = async (
       kriteria.id,
       sheetName,
       sheetConfig.sheetTitle,
-      cleanedData
+      cleanedData,
+      tx
     );
     createdSheets.push(created);
   }
@@ -313,7 +344,7 @@ export const updateLKPSSheetData = async (
     throw new Error(`Validasi data sheet "${sheetName}" gagal:\n${validation.errors.join('\n')}`);
   }
 
-  return await prisma.lKPSSheetData.update({
+  const result = await prisma.lKPSSheetData.update({
     where: {
       criteriaId_sheetName: {
         criteriaId,
@@ -322,6 +353,13 @@ export const updateLKPSSheetData = async (
     },
     data: { data },
   });
+
+  const criteria = await prisma.lKPSCriteria.findUnique({ where: { id: criteriaId }, include: { document: true } });
+  if (criteria?.document?.prodiId) {
+    generateEarlyWarnings(criteria.document.prodiId).catch(err => console.error('Failed to trigger early warnings after sheet update:', err));
+  }
+
+  return result;
 };
 
 /**
@@ -333,7 +371,7 @@ export const markSheetCompleted = async (
 ) => {
   await checkLKPSLock(criteriaId);
 
-  return await prisma.lKPSSheetData.update({
+  const result = await prisma.lKPSSheetData.update({
     where: {
       criteriaId_sheetName: {
         criteriaId,
@@ -342,6 +380,13 @@ export const markSheetCompleted = async (
     },
     data: { isCompleted: true },
   });
+
+  const criteria = await prisma.lKPSCriteria.findUnique({ where: { id: criteriaId }, include: { document: true } });
+  if (criteria?.document?.prodiId) {
+    generateEarlyWarnings(criteria.document.prodiId).catch(err => console.error('Failed to trigger early warnings after sheet complete:', err));
+  }
+
+  return result;
 };
 
 /**
@@ -388,7 +433,7 @@ export const saveLKPSDocumentAsDraft = async (documentId: string) => {
  * Menggunakan "One Final Rule" Transaction
  */
 export const finalizeLKPSDocument = async (documentId: string, userId: string) => {
-  return await prisma.$transaction(async (tx) => {
+  return await prisma.$transaction(async (tx: any) => {
     const targetDoc = await tx.documentLKPS.findUnique({ where: { id: documentId } });
     if (!targetDoc) throw new Error('Dokumen LKPS tidak ditemukan');
 
@@ -404,7 +449,7 @@ export const finalizeLKPSDocument = async (documentId: string, userId: string) =
     });
 
     // 2. Jadikan dokumen ini FINAL
-    return await tx.documentLKPS.update({
+    const result = await tx.documentLKPS.update({
       where: { id: documentId },
       data: {
         status: 'FINAL',
@@ -413,14 +458,18 @@ export const finalizeLKPSDocument = async (documentId: string, userId: string) =
         updatedAt: new Date(),
       } as any,
     });
+
+    generateEarlyWarnings(targetDoc.prodiId).catch(err => console.error('Failed to trigger early warnings after LKPS finalize:', err));
+    return result;
   });
 };
 
 export const toggleLKPSStatus = async (id: string, targetStatus: DocumentStatus, userId: string) => {
-  return await prisma.$transaction(async (tx) => {
+  return await prisma.$transaction(async (tx: any) => {
     const targetDoc = await tx.documentLKPS.findUnique({ where: { id } });
     if (!targetDoc) throw new Error('Dokumen LKPS tidak ditemukan');
 
+    let result;
     if (targetStatus === DocumentStatus.FINAL) {
       await tx.documentLKPS.updateMany({
         where: { 
@@ -431,15 +480,69 @@ export const toggleLKPSStatus = async (id: string, targetStatus: DocumentStatus,
         },
         data: { status: DocumentStatus.DRAFT, lockedAt: null, lockedBy: null } as any
       });
-      return await tx.documentLKPS.update({
+      result = await tx.documentLKPS.update({
         where: { id },
         data: { status: DocumentStatus.FINAL, lockedAt: new Date(), lockedBy: userId } as any
       });
     } else {
-      return await tx.documentLKPS.update({
+      result = await tx.documentLKPS.update({
         where: { id },
         data: { status: DocumentStatus.DRAFT, lockedAt: null, lockedBy: null } as any
       });
     }
+
+    generateEarlyWarnings(targetDoc.prodiId).catch(err => console.error('Failed to trigger early warnings after LKPS status toggle:', err));
+    return result;
+  });
+};
+export const importLKPS = async (
+  prodiId: string,
+  parsedData: Record<string, any[]>,
+  name: string,
+  filePath: string,
+  originalFilename: string,
+  periode: string,
+  format?: LKPSFormat
+) => {
+  return await prisma.$transaction(async (tx: any) => {
+    // 1. Create Document
+    const document = await createLKPSDocument(
+      prodiId,
+      parsedData,
+      name,
+      filePath,
+      originalFilename,
+      periode,
+      tx
+    );
+
+    // 2. Create Criterias
+    await createAllLKPSCriteria(document.id, tx);
+
+    // 3. Create Sheet Data (format-aware)
+    await createMultipleSheetsData(document.id, parsedData, tx, format);
+
+    generateEarlyWarnings(prodiId).catch(err => console.error('Failed to trigger early warnings after LKPS import:', err));
+    return document;
+  }, {
+    timeout: 30000 // 30 seconds for large imports
+  });
+};
+
+export const deleteLKPSDocument = async (documentId: string) => {
+  const doc = await prisma.documentLKPS.findUnique({
+    where: { id: documentId }
+  });
+
+  if (!doc) {
+    throw new Error('Dokumen tidak ditemukan');
+  }
+
+  if (doc.status === 'FINAL') {
+    throw new Error('Dokumen dengan status FINAL tidak dapat dihapus');
+  }
+
+  return await prisma.documentLKPS.delete({
+    where: { id: documentId }
   });
 };
