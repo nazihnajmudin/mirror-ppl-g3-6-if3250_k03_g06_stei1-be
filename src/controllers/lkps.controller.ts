@@ -127,8 +127,13 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
       }
     }
 
-    if (!targetProdiId || !file) {
-      return errorResponse(res, 'File atau Program studi tidak ditemukan', 400);
+    if (!file) {
+      console.error('[LKPS CONFIRM] File tidak ditemukan di request');
+      return errorResponse(res, 'File tidak ditemukan', 400);
+    }
+    if (!targetProdiId) {
+      console.error('[LKPS CONFIRM] prodiId tidak ditemukan. req.body.prodiId:', prodiId, '| req.user.prodiId:', (req.user as any)?.prodiId, '| role:', (req.user as any)?.role);
+      return errorResponse(res, 'Program studi tidak ditemukan', 400);
     }
 
     // Detect LKPS format from prodi name
