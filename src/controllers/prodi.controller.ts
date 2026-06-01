@@ -50,7 +50,7 @@ export const getMyProdiHandler = async (req: Request, res: Response): Promise<vo
     successResponse(res, prodis, 'Daftar prodi berhasil diambil');
   } catch (err: any) {
     const message = err?.message || 'Gagal mengambil daftar prodi';
-    errorResponse(res, message, 500);
+    errorResponse(res, message, 400);
   }
 };
 
@@ -246,7 +246,7 @@ export const getDashboardByProdiHandler = async (req: Request, res: Response): P
     successResponse(res, { ...dashboard, accessInfo }, 'Dashboard prodi berhasil diambil');
   } catch (err: any) {
     const message = err?.message || 'Gagal mengambil dashboard prodi';
-    const code = message.includes('tidak ditemukan') ? 404 : 500;
+    const code = message.includes('tidak ditemukan') ? 404 : 400;
     errorResponse(res, message, code);
   }
 };
@@ -286,18 +286,8 @@ export const updateDashboardByProdiHandler = async (req: Request, res: Response)
     successResponse(res, updatedDashboard, 'Dashboard prodi berhasil diupdate');
   } catch (err: any) {
     const message = err?.message || 'Gagal mengupdate dashboard prodi';
-    const code = message.includes('tidak ditemukan') ? 404 : 
-      message.includes('tidak boleh') ? 400 : 500;
+    const code = message.includes('tidak ditemukan') ? 404 : 400;
     errorResponse(res, message, code);
-  }
-};
-
-export const getInstitusiDashboardSummaryHandler = async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const summary = await prodiService.getInstitusiDashboardSummary();
-    successResponse(res, summary, 'Ringkasan dashboard institusi berhasil diambil');
-  } catch (err: any) {
-    errorResponse(res, err.message, 500);
   }
 };
 
@@ -326,20 +316,22 @@ export const getCertificateFileHandler = async (req: Request, res: Response): Pr
   try {
     const accreditation = await prodiService.getAccreditation(prodiId);
     if (!accreditation?.certificateUrl) {
-      errorResponse(res, 'Sertifikat tidak tersedia', 404);
+      errorResponse(res, 'Sertifikat tidak tersedia untuk prodi ini', 404);
+      return;
+    }
+
+    if (accreditation.certificateUrl.startsWith('http')) {
+      res.redirect(accreditation.certificateUrl);
       return;
     }
 
     const { storageProvider } = await import('../utils/storage');
-    const buffer = await storageProvider.downloadFile(accreditation.certificateUrl, 'accreditation');
-    
+    const filePath = storageProvider.getFilePath(accreditation.certificateUrl, 'accreditation');
     const originalName = accreditation.certificateOriginalName ?? 'sertifikat';
-    const encodedName = encodeURIComponent(originalName);
-    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedName}`);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.send(buffer);
+    res.download(filePath, originalName);
   } catch (err: any) {
-    const code = err.message.includes('tidak ditemukan') ? 404 : 500;
-    errorResponse(res, err.message, code);
+    const message = err.message;
+    const code = message.includes('tidak ditemukan') ? 404 : 500;
+    errorResponse(res, message, code);
   }
 };

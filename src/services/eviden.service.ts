@@ -2,7 +2,6 @@ import prisma from '../config/database.config';
 import { storageProvider } from '../utils/storage';
 import { Role, DocumentStatus } from '@prisma/client';
 import { getProdiForUser } from './prodi.service';
-import { generateEarlyWarnings } from './notification.service';
 
 export const createEviden = async (data: any, files: Express.Multer.File[], userId: string) => {
     // Upload semua file secara paralel
@@ -16,7 +15,7 @@ export const createEviden = async (data: any, files: Express.Multer.File[], user
         };
     }));
 
-    const result = await prisma.dokumenEviden.create({
+    return prisma.dokumenEviden.create({
         data: {
             prodiId: data.prodiId,
             judul: data.judul,
@@ -30,9 +29,6 @@ export const createEviden = async (data: any, files: Express.Multer.File[], user
         },
         include: { files: true, prodi: true }
     });
-
-    generateEarlyWarnings(data.prodiId).catch(err => console.error('Failed to trigger early warnings after eviden creation:', err));
-    return result;
 };
 
 export const getEvidenList = async (userId: string, role: Role) => {
@@ -98,7 +94,7 @@ export const updateEviden = async (id: string, data: any, newFiles: Express.Mult
     }
 
     // 3. Update record Eviden
-    const result = await prisma.dokumenEviden.update({
+    return prisma.dokumenEviden.update({
         where: { id },
         data: {
             prodiId: data.prodiId,
@@ -114,9 +110,6 @@ export const updateEviden = async (id: string, data: any, newFiles: Express.Mult
         },
         include: { files: true }
     });
-
-    generateEarlyWarnings(data.prodiId).catch(err => console.error('Failed to trigger early warnings after eviden update:', err));
-    return result;
 };
 
 export const deleteEviden = async (id: string) => {
@@ -132,8 +125,6 @@ export const deleteEviden = async (id: string) => {
         throw new Error('Dokumen Eviden telah dikunci (FINAL) dan tidak dapat dihapus.');
     }
 
-    const prodiId = eviden.prodiId;
-
     // Hapus fisik
     for (const file of eviden.files) {
         await storageProvider.delete(file.savedFilename, 'eviden');
@@ -141,7 +132,6 @@ export const deleteEviden = async (id: string) => {
 
     // Hapus dari DB (Relasi EvidenFile akan cascade)
     await prisma.dokumenEviden.delete({ where: { id } });
-    generateEarlyWarnings(prodiId).catch(err => console.error('Failed to trigger early warnings after eviden delete:', err));
     return true;
 };
 
@@ -154,21 +144,15 @@ export const getEvidenFile = async (fileId: string) => {
 };
 
 export const toggleEvidenStatus = async (id: string, targetStatus: DocumentStatus, userId: string) => {
-    let result;
     if (targetStatus === DocumentStatus.FINAL) {
-        result = await prisma.dokumenEviden.update({
+        return prisma.dokumenEviden.update({
             where: { id },
-            data: { status: DocumentStatus.FINAL, lockedAt: new Date(), lockedBy: userId },
-            include: { prodi: true }
+            data: { status: DocumentStatus.FINAL, lockedAt: new Date(), lockedBy: userId }
         });
     } else {
-        result = await prisma.dokumenEviden.update({
+        return prisma.dokumenEviden.update({
             where: { id },
-            data: { status: DocumentStatus.DRAFT, lockedAt: null, lockedBy: null },
-            include: { prodi: true }
+            data: { status: DocumentStatus.DRAFT, lockedAt: null, lockedBy: null }
         });
     }
-
-    generateEarlyWarnings(result.prodiId).catch(err => console.error('Failed to trigger early warnings after eviden toggle:', err));
-    return result;
 };

@@ -128,24 +128,19 @@ export const exportLEDHandler = async (req: Request, res: Response): Promise<voi
         const periode = String(req.params.periode);
 
         if (!req.params.prodiId || !req.params.periode) {
-            errorResponse(res, 'Parameter prodiId dan periode tidak valid', 400); return;
-        }
-
-        const { dokumen } = await ledService.exportLED(prodiId, periode);
-        const downloadName = dokumen.name || 'LED_Document.docx';
-
-        if (!dokumen.content || typeof dokumen.content !== 'string') {
-            errorResponse(res, 'File dokumen LED belum diunggah atau tidak tersedia', 404);
+            errorResponse(res, 'Parameter prodiId dan periode tidak valid', 400);
             return;
         }
 
-        const { storageProvider } = await import('../utils/storage');
-        const buffer = await storageProvider.downloadFile(dokumen.content, 'led');
-        
-        const encodedName = encodeURIComponent(downloadName);
-        res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedName}`);
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-        res.send(buffer);
+        const { dokumen, filePath } = await ledService.exportLED(prodiId, periode);
+
+        const downloadName = dokumen.name || 'LED_Document.docx';
+
+        res.download(filePath, downloadName, (err) => {
+            if (err && !res.headersSent) {
+                errorResponse(res, 'Terjadi kesalahan saat mengunduh file', 500);
+            }
+        });
     } catch (err: any) {
         const code = err.message.includes('belum tersedia') ? 404 : 500;
         errorResponse(res, err.message, code);
@@ -395,24 +390,16 @@ export const exportLEDByIdHandler = async (req: Request, res: Response): Promise
     try {
         const id = String(req.params.id);
         if (!id) {
-            errorResponse(res, 'Parameter ID wajib diisi', 400); return;
-        }
-
-        const { dokumen } = await ledService.exportLEDById(id);
-        const downloadName = dokumen.name || `LED_Document_V${dokumen.versi}.docx`;
-
-        if (!dokumen.content || typeof dokumen.content !== 'string') {
-            errorResponse(res, 'File dokumen LED belum diunggah atau tidak tersedia', 404);
+            errorResponse(res, 'Parameter ID dokumen wajib diisi', 400);
             return;
         }
 
-        const { storageProvider } = await import('../utils/storage');
-        const buffer = await storageProvider.downloadFile(dokumen.content, 'led');
-        
-        const encodedName = encodeURIComponent(downloadName);
-        res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedName}`);
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-        res.send(buffer);
+        const { dokumen, filePath } = await ledService.exportLEDById(id);
+        const downloadName = dokumen.name || `LED_Document_V${dokumen.versi}.docx`;
+
+        res.download(filePath, downloadName, (err) => {
+            if (err && !res.headersSent) errorResponse(res, 'Terjadi kesalahan saat mengunduh file', 500);
+        });
     } catch (err: any) {
         errorResponse(res, err.message, 404);
     }
@@ -424,8 +411,7 @@ export const softDeleteDocumentHandler = async (req: Request, res: Response) => 
         await ledService.softDeleteDocument(id);
         successResponse(res, null, 'Dokumen berhasil dipindahkan ke tempat sampah');
     } catch (err: any) {
-        const code = err.message.includes('tidak dapat dihapus') ? 400 : 500;
-        errorResponse(res, err.message, code);
+        errorResponse(res, err.message, 400);
     }
 };
 
@@ -442,8 +428,7 @@ export const softDeleteAllDraftsHandler = async (req: Request, res: Response) =>
         await ledService.softDeleteAllDrafts(prodiId, periode);
         successResponse(res, null, 'Semua versi draft berhasil dihapus');
     } catch (err: any) {
-        const code = err.message.includes('FINAL') ? 400 : 500;
-        errorResponse(res, err.message, code);
+        errorResponse(res, err.message, 400);
     }
 };
 
@@ -457,12 +442,11 @@ export const uploadLEDImageHandler = async (req: Request, res: Response): Promis
             errorResponse(res, 'File gambar wajib diunggah', 400);
             return;
         }
-        
-        const { storageProvider } = await import('../utils/storage');
-        const savedFilename = await storageProvider.upload(req.file, 'led');
-        const imageUrl = storageProvider.getFilePath(savedFilename, 'led');
-
-        successResponse(res, { url: imageUrl, path: imageUrl }, 'Gambar berhasil diunggah', 201);
+        const port = process.env.PORT || '8000';
+        const backendUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
+        const relativePath = `/uploads/led/${req.file.filename}`;
+        const imageUrl = `${backendUrl}${relativePath}`;
+        successResponse(res, { url: imageUrl, path: relativePath }, 'Gambar berhasil diunggah', 201);
     } catch (err: any) {
         errorResponse(res, err.message, 500);
     }

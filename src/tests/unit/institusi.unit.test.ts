@@ -3,9 +3,7 @@ import prisma from '../../config/database.config';
 
 jest.mock('../../config/database.config', () => ({
   dataInstitusi: {
-    findFirst: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
+    upsert: jest.fn(),
     findMany: jest.fn(),
   },
   lKPSSheetData: {
@@ -43,9 +41,8 @@ describe('Institusi Service - Unit Test', () => {
 
   describe('upsertAndSyncInstitusi', () => {
     it('harus menyimpan data institusi dan melakukan sinkronisasi parsial ke prodi', async () => {
-      const mockCreatedResult = { id: "master-1", periode: mockPeriode, sheetName: mockSheetName, prodiId: null, data: mockPayloadData };
-      (prisma.dataInstitusi.findFirst as jest.Mock).mockResolvedValue(null);
-      (prisma.dataInstitusi.create as jest.Mock).mockResolvedValue(mockCreatedResult);
+      const mockUpsertResult = { id: "master-1", periode: mockPeriode, sheetName: mockSheetName, data: mockPayloadData };
+      (prisma.dataInstitusi.upsert as jest.Mock).mockResolvedValue(mockUpsertResult);
 
       const mockExistingProdiSheets = [
         { 
@@ -57,20 +54,10 @@ describe('Institusi Service - Unit Test', () => {
 
       (prisma.lKPSSheetData.update as jest.Mock).mockResolvedValue(true);
 
-      const result = await institusiService.upsertAndSyncInstitusi(mockPeriode, mockSheetName, null, mockPayloadData, mockUserId);
+      const result = await institusiService.upsertAndSyncInstitusi(mockPeriode, mockSheetName, mockPayloadData, mockUserId);
 
-      expect(prisma.dataInstitusi.findFirst).toHaveBeenCalledWith({
-        where: { periode: mockPeriode, sheetName: mockSheetName, prodiId: null }
-      });
-
-      expect(prisma.dataInstitusi.create).toHaveBeenCalledWith(expect.objectContaining({
-        data: {
-          periode: mockPeriode,
-          sheetName: mockSheetName,
-          prodiId: null,
-          data: mockPayloadData,
-          createdById: mockUserId,
-        }
+      expect(prisma.dataInstitusi.upsert).toHaveBeenCalledWith(expect.objectContaining({
+        where: { periode_sheetName: { periode: mockPeriode, sheetName: mockSheetName } }
       }));
 
       expect(prisma.lKPSSheetData.update).toHaveBeenCalledWith({
@@ -80,7 +67,7 @@ describe('Institusi Service - Unit Test', () => {
         }
       });
 
-      expect(result).toEqual(mockCreatedResult);
+      expect(result).toEqual(mockUpsertResult);
     });
   });
 });

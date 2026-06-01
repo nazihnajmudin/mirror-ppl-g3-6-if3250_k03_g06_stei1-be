@@ -3,7 +3,6 @@ import * as authService from '../services/auth.service';
 import passport from '../config/passport.config';
 import { isSSOConfigured } from '../config/sso.config';
 import { successResponse, errorResponse } from '../utils/response';
-import { AppError } from '../utils/errors';
 
 /**
  * @swagger
@@ -44,12 +43,7 @@ export const registerHandler = async (req: Request, res: Response): Promise<void
     const result = await authService.register({ email, name, password, role, prodiId });
     successResponse(res, result, 'Registrasi berhasil', 201);
   } catch (err: any) {
-    if (err instanceof AppError) {
-      errorResponse(res, err.message, err.statusCode);
-    } else {
-      const code = err.message.includes('sudah terdaftar') ? 409 : 400;
-      errorResponse(res, err.message, code);
-    }
+    errorResponse(res, err.message, 400);
   }
 };
 
@@ -92,16 +86,7 @@ export const loginHandler = async (req: Request, res: Response): Promise<void> =
     const result = await authService.login({ email, password });
     successResponse(res, result, 'Login berhasil');
   } catch (err: any) {
-    if (err instanceof AppError) {
-      errorResponse(res, err.message, err.statusCode);
-      return;
-    }
-
-    const errorMsg = err.message.toLowerCase();
-    const code = errorMsg.includes('salah') || errorMsg.includes('tidak ditemukan') || errorMsg.includes('dinonaktifkan') ? 401 : 
-                 errorMsg.includes('sso') ? 400 : 500;
-                 
-    errorResponse(res, err.message, code);
+    errorResponse(res, err.message, 400);
   }
 };
 

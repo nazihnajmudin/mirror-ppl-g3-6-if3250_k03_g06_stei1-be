@@ -2,9 +2,6 @@ import prisma from '../config/database.config';
 import { Role } from '@prisma/client';
 import { UpdateProdiInput, UpsertAccreditationInput } from '../validators/prodi.validator';
 import { storageProvider } from '../utils/storage';
-import { getSimulationByProdi } from './simulasiskor.service';
-import { generateEarlyWarnings } from './notification.service';
-import { getSheetNamesByFormat } from '../config/lkps.config';
 
 export interface DashboardData {
   prodi: {
@@ -145,15 +142,7 @@ export const upsertAccreditation = async (prodiId: string, data: UpsertAccredita
   const prodi = await prisma.prodi.findUnique({ where: { id: prodiId } });
   if (!prodi) throw new Error('Program studi tidak ditemukan');
 
-  const existing = await prisma.accreditationInfo.findUnique({ where: { prodiId } });
-  const finalStartDate = data.startDate !== undefined ? (data.startDate ? new Date(data.startDate) : null) : existing?.startDate;
-  const finalEndDate = data.endDate !== undefined ? (data.endDate ? new Date(data.endDate) : null) : existing?.endDate;
-
-  if (finalStartDate && finalEndDate && finalStartDate > finalEndDate) {
-    throw new Error('Tanggal mulai berlaku tidak boleh melebihi tanggal berakhir');
-  }
-
-  const result = await prisma.accreditationInfo.upsert({
+  return prisma.accreditationInfo.upsert({
     where: { prodiId },
     update: {
       ...(data.grade !== undefined && { grade: data.grade }),
@@ -169,10 +158,6 @@ export const upsertAccreditation = async (prodiId: string, data: UpsertAccredita
       certificateUrl: data.certificateUrl,
     },
   });
-
-  await generateEarlyWarnings(prodiId).catch(err => console.error('Failed to trigger early warnings:', err));
-
-  return result;
 };
 
 export const uploadAccreditationCertificate = async (prodiId: string, file: Express.Multer.File) => {
@@ -202,35 +187,27 @@ export const uploadAccreditationCertificate = async (prodiId: string, file: Expr
 };
 
 export const getDashboardByProdi = async (prodiId: string): Promise<DashboardData> => {
-  // Fetch all necessary data in parallel
-  const [prodi, simulationRecord, latestLEDForm, recentForms, recentUploads] = await Promise.all([
-    prisma.prodi.findUnique({
-      where: { id: prodiId },
-      include: {
-        accreditation: true,
-        documentLKPS: { orderBy: { updatedAt: 'desc' }, take: 1 },
-        documentLED: { orderBy: { versi: 'desc' }, take: 1 },
+  const prodi = await prisma.prodi.findUnique({
+    where: { id: prodiId },
+    include: {
+      accreditation: true,
+      documentLKPS: {
+        orderBy: { updatedAt: 'desc' },
+        take: 1
       },
-    }),
-    getSimulationByProdi(prodiId),
-    (prisma as any).ledForm.findFirst({
-      where: { prodiId },
-      orderBy: { createdAt: 'desc' },
-      select: { template: true, content: true },
-    }),
-    (prisma as any).ledForm.findMany({
-      where: { prodiId },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-      select: { id: true, createdAt: true, template: true, createdBy: { select: { name: true } } },
-    }),
-    (prisma as any).documentLED.findMany({
-      where: { prodiId },
-      orderBy: { updatedAt: 'desc' },
-      take: 5,
-      select: { id: true, updatedAt: true, name: true, pengunggah: { select: { name: true } } },
-    }),
-  ]);
+      documentLED: {
+        orderBy: { versi: 'desc' },
+        take: 1
+      },
+      users: {
+        select: {
+          id: true,
+          name: true,
+          role: true,
+        },
+      },
+    },
+  });
 
   if (!prodi) {
     throw new Error('Program studi tidak ditemukan');
@@ -245,23 +222,10 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
   const lkpsDoc = prodi.documentLKPS[0] as { status: string } | undefined;
   const ledDoc = prodi.documentLED[0] as { status: string } | undefined;
 
-  const isInfokom = prodi.category === 'INFOKOM';
-  const format = isInfokom ? 'INFOKOM' : 'TEKNIK';
-  let lkpsProgress = 0;
-  if (lkpsDoc?.status === 'FINAL') {
-    lkpsProgress = 100;
-  } else if (lkpsDoc && (lkpsDoc as any).content) {
-    const totalSheets = getSheetNamesByFormat(format).length;
-    const content = typeof (lkpsDoc as any).content === 'string' ? JSON.parse((lkpsDoc as any).content) : (lkpsDoc as any).content;
-    const filledSheets = Object.values(content).filter((sheetData: any) => Array.isArray(sheetData) && sheetData.length > 0).length;
-    lkpsProgress = totalSheets > 0 ? Math.round((filledSheets / totalSheets) * 100) : 0;
-    if (lkpsProgress > 99) lkpsProgress = 99;
-  }
-
   const documents = {
     lkps: {
       status: lkpsDoc?.status || 'DRAFT',
-      progress: lkpsProgress,
+      progress: lkpsDoc?.status === 'FINAL' ? 100 : (lkpsDoc ? 50 : 0),
     },
     led: {
       status: ledDoc?.status || 'DRAFT',
@@ -269,6 +233,27 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
     },
   };
 
+  const latestLEDForm = await (prisma as any).ledForm.findFirst({
+    where: { prodiId },
+    orderBy: { createdAt: 'desc' },
+    select: { template: true, content: true },
+  });
+  const isInfokom = latestLEDForm?.template === 'INFOKOM';
+
+  const recentFormsPromise = (prisma as any).ledForm.findMany({
+    where: { prodiId },
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+    select: { id: true, createdAt: true, template: true, createdBy: { select: { name: true } } },
+  });
+  const recentUploadsPromise = (prisma as any).documentLED.findMany({
+    where: { prodiId },
+    orderBy: { updatedAt: 'desc' },
+    take: 5,
+    select: { id: true, updatedAt: true, name: true, pengunggah: { select: { name: true } } },
+  });
+
+  const [recentForms, recentUploads] = await Promise.all([recentFormsPromise, recentUploadsPromise]);
 
   const recentActivitiesUnsorted: Array<{ id: string; user: string; action: string; timestamp: Date }> = [];
   
@@ -277,7 +262,7 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
       id: f.id,
       user: f.createdBy?.name || 'Sistem',
       action: `Menyimpan draft formulir LED (${f.template === 'INFOKOM' ? 'Infokom' : 'Teknik'})`,
-      timestamp: f.updatedAt || f.createdAt,
+      timestamp: f.createdAt,
     });
   });
 
@@ -295,7 +280,8 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
     .slice(0, 4)
     .map(a => ({ ...a, timestamp: a.timestamp.toISOString() }));
 
-  const simulationScore = simulationRecord.totalScore;
+  const simulationRecord = await prisma.accreditationSimulation.findUnique({ where: { prodiId } });
+  const simulationScore = simulationRecord?.totalScore ?? 0;
 
   const rawContent = latestLEDForm?.content ?? null;
   const formContent: Record<string, string> = rawContent
@@ -304,22 +290,20 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
 
   const isFilledSection = (html: string | undefined): boolean => {
     if (!html) return false;
-    // Fast regex for non-empty content excluding standard placeholders
-    const plainText = html.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
-    if (plainText.length < 50) return false; // Minimum meaningful content
-    
+    const plainText = html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    if (plainText.length < 300) return false;
     const lower = plainText.toLowerCase();
-    const placeholders = [
-      'diisi oleh pengusul',
-      'penjelasan disampaikan oleh pengusul',
-      'bagian ini berisi',
-      'bagian ini menjelaskan',
-      'tuliskan',
-      'jelaskan',
-      'uraikan'
-    ];
-    
-    return !placeholders.some(p => lower.includes(p));
+    if (lower.includes('diisi oleh pengusul')) return false;
+    if (lower.includes('penjelasan disampaikan oleh pengusul')) return false;
+    if (lower.includes('bagian ini berisi')) return false;
+    if (lower.includes('bagian ini menjelaskan')) return false;
+    return true;
+  };
+
+  const calcProgress = (keys: string[]): number => {
+    if (keys.length === 0) return 0;
+    const filled = keys.filter((k) => isFilledSection(formContent[k])).length;
+    return Math.round((filled / keys.length) * 100);
   };
 
   const LAM_TEKNIK_CRITERIA = [
@@ -385,27 +369,7 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
     };
   });
 
-  // Critical Indicators Logic
   const criticalIndicators: Array<{ id: string; name: string; status: string }> = [];
-
-  // 1. Accreditation Expiry Warning
-  if (accreditation.endDate) {
-    const monthsToExpiry = (new Date(accreditation.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24 * 30);
-    if (monthsToExpiry < 0) {
-      criticalIndicators.push({ id: 'acc_expired', name: 'Akreditasi Kedaluwarsa', status: 'DANGER' });
-    } else if (monthsToExpiry < 6) {
-      criticalIndicators.push({ id: 'acc_warning', name: 'Akreditasi Segera Berakhir (< 6 bln)', status: 'WARNING' });
-    }
-  }
-
-  // 2. Low Simulation Scores
-  simulationRecord.indicators.forEach(ind => {
-    if (ind.totalScore < 30) {
-      criticalIndicators.push({ id: `low_score_${ind.code}`, name: `Skor Rendah: ${ind.name}`, status: 'DANGER' });
-    } else if (ind.totalScore < 50) {
-      criticalIndicators.push({ id: `mid_score_${ind.code}`, name: `Skor Perlu Ditingkatkan: ${ind.name}`, status: 'WARNING' });
-    }
-  });
 
   return {
     prodi: {
@@ -478,13 +442,6 @@ export const updateDashboardByProdi = async (
       where: { prodiId },
     });
 
-    const finalStartDate = data.accreditationInfo.startDate !== undefined ? (data.accreditationInfo.startDate ? new Date(data.accreditationInfo.startDate) : null) : existingAccreditation?.startDate;
-    const finalEndDate = data.accreditationInfo.endDate !== undefined ? (data.accreditationInfo.endDate ? new Date(data.accreditationInfo.endDate) : null) : existingAccreditation?.endDate;
-
-    if (finalStartDate && finalEndDate && finalStartDate > finalEndDate) {
-      throw new Error('Tanggal mulai berlaku tidak boleh melebihi tanggal berakhir');
-    }
-
     if (existingAccreditation) {
       await prisma.accreditationInfo.update({
         where: { id: existingAccreditation.id },
@@ -504,60 +461,7 @@ export const updateDashboardByProdi = async (
         },
       });
     }
-    await generateEarlyWarnings(prodiId).catch(err => console.error('Failed to trigger early warnings after prodi update:', err));
   }
 
   return getDashboardByProdi(prodiId);
-};
-
-export const getInstitusiDashboardSummary = async () => {
-  const prodis = await prisma.prodi.findMany({
-    include: {
-      accreditation: true,
-      documentLKPS: { orderBy: { updatedAt: 'desc' }, take: 1 },
-      documentLED: { orderBy: { versi: 'desc' }, take: 1 },
-      simulation: true,
-    },
-    orderBy: { fullname: 'asc' },
-  });
-
-  return prodis.map((prodi) => {
-    const lkpsDoc = prodi.documentLKPS[0];
-    const ledDoc = prodi.documentLED[0];
-    
-    const score = prodi.simulation?.totalScore || 0;
-
-    let lkpsProgress = 0;
-    if (lkpsDoc?.status === 'FINAL') {
-      lkpsProgress = 100;
-    } else if (lkpsDoc && lkpsDoc.content) {
-      const format = prodi.category === 'INFOKOM' ? 'INFOKOM' : 'TEKNIK';
-      const totalSheets = getSheetNamesByFormat(format).length;
-      const content = typeof lkpsDoc.content === 'string' ? JSON.parse(lkpsDoc.content) : lkpsDoc.content;
-      const filledSheets = Object.values(content).filter((sheetData: any) => Array.isArray(sheetData) && sheetData.length > 0).length;
-      lkpsProgress = totalSheets > 0 ? Math.round((filledSheets / totalSheets) * 100) : 0;
-      if (lkpsProgress > 99) lkpsProgress = 99;
-    }
-
-    return {
-      id: prodi.id,
-      fullname: prodi.fullname,
-      abbreviation: prodi.abbreviation,
-      degree: prodi.degree,
-      accreditation: prodi.accreditation ? {
-        grade: prodi.accreditation.grade,
-        endDate: prodi.accreditation.endDate?.toISOString() || null,
-      } : null,
-      documents: {
-        lkps: {
-          progress: lkpsProgress,
-        },
-        led: {
-          progress: ledDoc?.status === 'FINAL' ? 100 : (ledDoc ? 50 : 0),
-        },
-      },
-      simulationScore: score,
-      status: score >= 361 ? 'completed' : 'in_progress',
-    };
-  });
 };

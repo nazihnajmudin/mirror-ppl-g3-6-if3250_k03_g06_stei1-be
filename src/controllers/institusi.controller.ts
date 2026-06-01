@@ -6,14 +6,13 @@ import { errorResponse } from '../utils/response';
 export const upsertInstitusiHandler = async (req: Request, res: Response) => {
   try {
     const validatedData = upsertInstitusiSchema.parse({ body: req.body });
-    const { periode, prodiId = null, sheetName, data } = validatedData.body;
+    const { periode, sheetName, data } = validatedData.body;
 
     const userId = req.user!.userId; 
 
     const result = await InstitusiService.upsertAndSyncInstitusi(
       periode, 
       sheetName, 
-      prodiId,
       data, 
       userId
     );
@@ -33,13 +32,12 @@ export const upsertInstitusiHandler = async (req: Request, res: Response) => {
 
 export const getInstitusiHandler = async (req: Request, res: Response) => {
   try {
-    const { periode, sheetName, prodiId } = req.query;
+    const { periode, sheetName } = req.query;
     if (!periode) return errorResponse(res, 'Periode wajib diisi', 400);
 
     const result = await InstitusiService.getDataInstitusi(
       periode as string, 
-      sheetName as string | undefined,
-      prodiId as string | undefined
+      sheetName as string | undefined
     );
 
     return res.status(200).json({ status: 'success', data: result });

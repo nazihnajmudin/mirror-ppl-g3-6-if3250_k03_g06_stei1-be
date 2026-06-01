@@ -17,30 +17,13 @@ jest.mock('../../config/database.config', () => ({
     upsert: jest.fn(),
   },
   documentLKPS: {
-    findFirst: jest.fn(),
     orderBy: jest.fn(),
     take: jest.fn(),
   },
   documentLED: {
-    findMany: jest.fn().mockResolvedValue([]),
     orderBy: jest.fn(),
     take: jest.fn(),
   },
-  ledForm: {
-    findFirst: jest.fn().mockResolvedValue(null),
-    findMany: jest.fn().mockResolvedValue([]),
-  },
-}));
-
-jest.mock('../../services/notification.service', () => ({
-  generateEarlyWarnings: jest.fn().mockResolvedValue(undefined),
-}));
-
-jest.mock('../../services/simulasiskor.service', () => ({
-  getSimulationByProdi: jest.fn().mockResolvedValue({
-    totalScore: 85,
-    indicators: [],
-  }),
 }));
 
 describe('Prodi Service - Unit Test', () => {

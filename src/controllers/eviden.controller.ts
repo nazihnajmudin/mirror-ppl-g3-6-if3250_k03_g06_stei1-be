@@ -40,7 +40,7 @@ export const getEvidenListHandler = async (req: Request, res: Response) => {
         const result = await evidenService.getEvidenList(userId, role);
         successResponse(res, result, 'Berhasil mengambil daftar eviden');
     } catch (err: any) {
-        errorResponse(res, err.message, 500);
+        errorResponse(res, err.message, 400);
     }
 };
 
@@ -70,8 +70,7 @@ export const updateEvidenHandler = async (req: Request, res: Response) => {
         const result = await evidenService.updateEviden(String(req.params.id), parsedData, files, deletedFileIds);
         successResponse(res, result, 'Dokumen Eviden berhasil diperbarui');
     } catch (err: any) {
-        const code = err.message.includes('dikunci') ? 400 : 500;
-        errorResponse(res, err.message, code);
+        errorResponse(res, err.message, 400);
     }
 };
 
@@ -80,23 +79,16 @@ export const deleteEvidenHandler = async (req: Request, res: Response) => {
         await evidenService.deleteEviden(String(req.params.id));
         successResponse(res, null, 'Dokumen Eviden berhasil dihapus');
     } catch (err: any) {
-        const code = err.message.includes('tidak ditemukan') ? 404 : 
-            err.message.includes('tidak dapat dihapus') ? 400 : 500;
-        errorResponse(res, err.message, code);
+        errorResponse(res, err.message, 400);
     }
 };
 
 export const downloadFileHandler = async (req: Request, res: Response) => {
     try {
-        const { file } = await evidenService.getEvidenFile(String(req.params.fileId));
-        
-        const { storageProvider } = await import('../utils/storage');
-        const buffer = await storageProvider.downloadFile(file.savedFilename, 'eviden');
-        
-        const encodedName = encodeURIComponent(file.originalFilename);
-        res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedName}`);
-        res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
-        res.send(buffer);
+        const { file, filePath } = await evidenService.getEvidenFile(String(req.params.fileId));
+        res.download(filePath, file.originalFilename, (err) => {
+            if (err) res.status(404).send('File fisik tidak ditemukan di server.');
+        });
     } catch (err: any) {
         errorResponse(res, err.message, 404);
     }

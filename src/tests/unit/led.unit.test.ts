@@ -17,12 +17,6 @@ jest.mock('../../config/database.config', () => ({
     findMany: jest.fn(),
     findUnique: jest.fn(),
   },
-  documentLKPS: {
-    findFirst: jest.fn(),
-    create: jest.fn(),
-    findMany: jest.fn(),
-    findUnique: jest.fn(),
-  },
   accreditationInfo: {
     findUnique: jest.fn(),
   },
@@ -104,10 +98,7 @@ describe('LED Service Unit Tests', () => {
     it('harus meningkatkan versi jika dokumen sebelumnya ada', async () => {
       (prisma.prodi.findUnique as jest.Mock).mockResolvedValue(mockProdi);
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-      (prisma.documentLED.findFirst as jest.Mock).mockImplementation(async (params: any) => {
-        if (params?.where?.status === 'FINAL') return null;
-        return { versi: 2 };
-      });
+      (prisma.documentLED.findFirst as jest.Mock).mockResolvedValue({ versi: 2 });
       (storageProvider.upload as jest.Mock).mockResolvedValue('stored-file-v3.pdf');
 
       await ledService.importLED({
@@ -199,8 +190,6 @@ describe('LED Service Unit Tests', () => {
           prodiId: 'prodi-123',
           template: 'INFOKOM',
           periode: '2026',
-          versi: 1,
-          status: DocumentStatus.DRAFT,
           content: { sectionA: 'Data A' },
           createdById: 'user-123',
         },

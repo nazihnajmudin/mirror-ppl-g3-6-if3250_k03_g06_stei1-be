@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { Role } from '@prisma/client';
 import { errorResponse } from '../utils/response';
-import prisma from '../config/database.config';
 
 export interface JwtPayload {
   userId: string;
@@ -20,8 +19,12 @@ declare global {
 
 /**
  * Middleware untuk memverifikasi token JWT dan menambahkan informasi pengguna ke objek request.
+ * @param req 
+ * @param res 
+ * @param next 
+ * @returns 
  */
-export const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const authenticate = (req: Request, res: Response, next: NextFunction): void => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     errorResponse(res, 'Token autentikasi tidak ditemukan', 401);
@@ -37,31 +40,10 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 
   try {
     const decoded = jwt.verify(token, secret) as JwtPayload;
-    
-    // Validasi apakah user masih ada dan aktif di DB
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: { isActive: true }
-    });
-
-    if (!user) {
-      errorResponse(res, 'Sesi tidak valid: Pengguna tidak ditemukan', 401);
-      return;
-    }
-
-    if (!user.isActive) {
-      errorResponse(res, 'Sesi tidak valid: Akun Anda telah dinonaktifkan', 401);
-      return;
-    }
-
     req.user = decoded;
     next();
-  } catch (err: any) {
-    if (err.name === 'TokenExpiredError') {
-      errorResponse(res, 'Token telah kedaluwarsa', 401);
-    } else {
-      errorResponse(res, 'Token tidak valid', 401);
-    }
+  } catch {
+    errorResponse(res, 'Token tidak valid atau telah kedaluwarsa', 401);
   }
 };
 

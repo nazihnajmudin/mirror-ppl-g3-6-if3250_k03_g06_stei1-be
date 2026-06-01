@@ -1,7 +1,6 @@
 import { Prisma } from '@prisma/client';
 import prisma from '../config/database.config';
 import { LKPS_KRITERIA } from '../config/lkps.config';
-import { generateEarlyWarnings } from './notification.service';
 
 export interface SimulationIndicator {
   code: string;
@@ -65,7 +64,7 @@ const calculateIndicatorQuantitative = async (prodiId: string) => {
   });
 
   const evidenDocs = await prisma.dokumenEviden.findMany({
-    where: { prodiId, status: 'FINAL' }, // Only final evidence counts
+    where: { prodiId },
     select: {
       indikator: true,
     },
@@ -76,22 +75,19 @@ const calculateIndicatorQuantitative = async (prodiId: string) => {
     return acc;
   }, {});
 
-  evidenDocs.forEach((doc:{ indikator: unknown }) => {
+  evidenDocs.forEach((doc) => {
     const indicators = Array.isArray(doc.indikator) ? doc.indikator : [];
-    const processedInThisDoc = new Set<string>();
-
     indicators.forEach((indicator) => {
       const normalized = normalizeIndicatorText(indicator);
-      
       Object.entries(LKPS_KRITERIA).forEach(([criteriaCode, criteriaInfo]) => {
-        if (processedInThisDoc.has(criteriaCode)) return;
-
-        const codeMatch = normalized === criteriaCode || normalized === `c${criteriaCode}` || normalized === `kriteria ${criteriaCode}`;
-        const nameMatch = normalized === criteriaInfo.name.toLowerCase();
-        
-        if (codeMatch || nameMatch) {
+        const codeToken = criteriaCode.toLowerCase();
+        const nameToken = criteriaInfo.name.toLowerCase();
+        if (
+          normalized.includes(codeToken) ||
+          normalized.includes(nameToken) ||
+          normalized.includes(nameToken.split(' ')[0])
+        ) {
           evidenceCountByCriteria[criteriaCode] = Math.min(evidenceCountByCriteria[criteriaCode] + 1, 10);
-          processedInThisDoc.add(criteriaCode);
         }
       });
     });
@@ -100,13 +96,11 @@ const calculateIndicatorQuantitative = async (prodiId: string) => {
   const criteriaCompletion: Record<string, number> = {};
   if (latestLKPS) {
     latestLKPS.criterias.forEach((criteria) => {
-      const totalSheets = criteria.sheets.length;
-      if (totalSheets === 0) {
-        criteriaCompletion[criteria.criteriaCode] = 0;
-        return;
-      }
+      const totalSheets = criteria.sheets.length || 1;
       const completedSheets = criteria.sheets.filter((sheet) => sheet.isCompleted).length;
-      criteriaCompletion[criteria.criteriaCode] = completedSheets / totalSheets;
+      criteriaCompletion[criteria.criteriaCode] = criteria.isCompleted
+        ? 1
+        : completedSheets / totalSheets;
     });
   }
 
@@ -116,21 +110,14 @@ const calculateIndicatorQuantitative = async (prodiId: string) => {
     const criteriaCode = indicator.code.replace('C.', '');
     const sheetCompletion = Math.round((criteriaCompletion[criteriaCode] ?? 0) * 100);
     const evidenceCount = evidenceCountByCriteria[criteriaCode] ?? 0;
-    
-    // Kuantitatif (LKPS): max 400
-    const quantitativeScore = Math.round((sheetCompletion / 100) * 400);
-    
-    // Auto Kualitatif (LED + Eviden) fallback: max 400 based on evidence
-    const evidenceRatio = Math.min(evidenceCount / 5, 1);
-    const autoQualitativeScore = Math.round(evidenceRatio * 400);
-
-    // Total default (70% kuantitatif + 30% kualitatif)
-    const totalScore = Math.round(quantitativeScore * 0.7 + autoQualitativeScore * 0.3);
+    const evidenceRatio = Math.min(evidenceCount / 3, 1);
+    const quantitativeScore = Math.round((sheetCompletion / 100) * 0.7 * 100 + evidenceRatio * 0.3 * 100);
+    const totalScore = quantitativeScore;
 
     return {
       ...indicator,
       quantitativeScore,
-      qualitativeScore: null, // Still null to indicate it hasn't been manually assessed
+      qualitativeScore: null,
       qualitativeNote: null,
       totalScore,
       evidenceCount,
@@ -163,12 +150,9 @@ const mergeManualQualitative = (
     const manual = manualMap.get(item.code);
     const qualitativeScore = manual?.qualitativeScore ?? null;
     const qualitativeNote = manual?.qualitativeNote ?? null;
-    
-    // Use manual qualitative score if exists, else use the auto-calculated one (which is embedded in the initial totalScore logic or we can recalculate it here)
-    const autoQualitativeScore = Math.round(Math.min(item.evidenceCount / 5, 1) * 400);
-    const finalQualitativeScore = qualitativeScore !== null ? qualitativeScore : autoQualitativeScore;
-    
-    const totalScore = Math.round(item.quantitativeScore * 0.7 + finalQualitativeScore * 0.3);
+    const totalScore = qualitativeScore !== null
+      ? Math.round(item.quantitativeScore * 0.7 + qualitativeScore * 0.3)
+      : item.quantitativeScore;
 
     return {
       ...item,
@@ -206,14 +190,14 @@ export const getSimulationByProdi = async (prodiId: string) => {
   const result = await prisma.accreditationSimulation.upsert({
     where: { prodiId },
     update: {
-      indicators: indicators as unknown as any,
+      indicators: indicators as unknown as Prisma.JsonArray,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
     },
     create: {
       prodiId,
-      indicators: indicators as unknown as any,
+      indicators: indicators as unknown as Prisma.JsonArray,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
@@ -255,10 +239,9 @@ export const updateSimulationQualitative = async (
       ? update.qualitativeNote
       : existingData?.qualitativeNote ?? null;
     
-    const autoQualitativeScore = Math.round(Math.min(indicator.evidenceCount / 5, 1) * 400);
-    const finalQualitativeScore = qualitativeScore !== null ? qualitativeScore : autoQualitativeScore;
-    
-    const totalScore = Math.round(indicator.quantitativeScore * 0.7 + finalQualitativeScore * 0.3);
+    const totalScore = qualitativeScore !== null
+      ? Math.round(indicator.quantitativeScore * 0.5 + qualitativeScore * 0.5)
+      : indicator.quantitativeScore;
 
     return {
       ...indicator,
@@ -273,21 +256,19 @@ export const updateSimulationQualitative = async (
   const result = await prisma.accreditationSimulation.upsert({
     where: { prodiId },
     update: {
-      indicators: mergedIndicators as unknown as any,
+      indicators: mergedIndicators as unknown as Prisma.JsonArray,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
     },
     create: {
       prodiId,
-      indicators: mergedIndicators as unknown as any,
+      indicators: mergedIndicators as unknown as Prisma.JsonArray,
       quantitativeScore: summary.quantitativeScore,
       qualitativeScore: summary.qualitativeScore,
       totalScore: summary.totalScore,
     },
   });
-
-  await generateEarlyWarnings(prodiId).catch(err => console.error('Failed to trigger early warnings after simulation update:', err));
 
   return {
     prodiId,

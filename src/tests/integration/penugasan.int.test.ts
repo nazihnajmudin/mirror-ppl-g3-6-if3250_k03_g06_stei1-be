@@ -57,8 +57,6 @@ describe('Penugasan Management - Integration Test', () => {
   afterAll(async () => {
     await prisma.prodiAssignment.deleteMany({ where: { prodiId: testProdiId } });
     await prisma.user.deleteMany({ where: { email: { in: [adminUser.email, timProdiUser.email] } } });
-    await prisma.accreditationInfo.deleteMany({ where: { prodiId: testProdiId } });
-    await prisma.prodi.deleteMany({ where: { id: testProdiId } });
     await prisma.$disconnect();
   });
 
