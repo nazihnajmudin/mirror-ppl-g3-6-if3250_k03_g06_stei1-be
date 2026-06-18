@@ -11,6 +11,7 @@ import {
   updateLKPSSheetHandler,
   completeSheetHandler,
   getSheetConfigHandler,
+  getLKPSConfigAllHandler,
   getSheetsByProgramHandler,
   getDocumentSheetsHandler,
   autoSaveLKPSSheetHandler,
@@ -19,6 +20,8 @@ import {
   toggleLKPSStatusHandler,
   getProdiFormatHandler,
   deleteLKPSDocumentHandler,
+  getAvailablePeriodsHandler,
+  getLKPSProgressHandler,
 } from '../controllers/lkps.controller';
 import { authenticate, requireRole } from '../middlewares/auth.middleware';
 import { requireResourceAccess } from '../middlewares/resourceAccess.middleware';
@@ -41,6 +44,7 @@ const upload = multer({
 router.use(authenticate);
 
 // 1. Helper routes (get config, sheets by program, etc) - BEFORE specific ID routes
+router.get('/config-all', getLKPSConfigAllHandler);
 router.get('/config/:sheetName', getSheetConfigHandler);
 router.get('/sheets-by-program/:programType', getSheetsByProgramHandler);
 router.get('/format/:prodiId', requireResourceAccess('prodi', 'read', 'prodiId'), getProdiFormatHandler);
@@ -68,6 +72,8 @@ router.post('/confirm', upload.single('file'), confirmLKPSHandler);
 
 // 6. History and Export
 router.get('/history/:prodiId', requireResourceAccess('prodi', 'read', 'prodiId'), getLKPSHistoryHandler);
+router.get('/:prodiId/progress', requireResourceAccess('prodi', 'read', 'prodiId'), getLKPSProgressHandler);
 router.get('/export/:id', requireResourceAccess('lkps_document', 'read', 'id'), exportLKPSHandler);
+router.get('/available-periods/:prodiId', requireResourceAccess('prodi', 'read', 'prodiId'), getAvailablePeriodsHandler);
 
 export default router;

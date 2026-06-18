@@ -46,6 +46,12 @@ router.get(
 );
 
 router.get(
+  '/my-prodi',
+  authenticate,
+  getMyProdiHandler
+);
+
+router.get(
   '/:id',
   requireResourceAccess('prodi', 'read', 'id'),
   getProdiByIdHandler

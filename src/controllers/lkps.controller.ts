@@ -3,7 +3,7 @@ import { successResponse, errorResponse } from '../utils/response';
 import { parseLKPSExcel } from '../parsers/lkps.parser';
 import * as lkpsService from '../services/lkps.service';
 import prisma from '../config/database.config';
-import { getSheetConfig, LKPS_SHEETS, getSheetsByFormat, LKPSFormat } from '../config/lkps.config';
+import { getSheetConfig, LKPS_SHEETS, getSheetsByFormat, LKPSFormat, LKPS_SHEET_NAMES_INFOKOM, LKPS_SHEET_NAMES_LAMTEKNIK, LKPS_KRITERIA, LKPS_SHEETS_INFOKOM, LKPS_SHEETS_LAMTEKNIK } from '../config/lkps.config';
 import path from 'path';
 import fs from 'fs';
 
@@ -116,6 +116,11 @@ export const previewLKPSHandler = async (req: Request, res: Response) => {
 export const confirmLKPSHandler = async (req: Request, res: Response) => {
   try {
     const { prodiId, name, periode } = req.body;
+    
+    if (periode && !/^\d{4}$/.test(periode as string)) {
+      return errorResponse(res, 'Periode harus berupa 4 digit tahun (contoh: 2025)', 400);
+    }
+
     const file = req.file;
     
     let targetProdiId = (prodiId as string) || (req.user as any)?.prodiId;
@@ -265,12 +270,45 @@ export const confirmLKPSHandler = async (req: Request, res: Response) => {
  */
 export const getLKPSHistoryHandler = async (req: Request, res: Response) => {
   try {
-    const prodiId = req.params.prodiId as string;
-    const history = await lkpsService.getLKPSHistoryByProdi(prodiId);
-    return successResponse(res, history, 'Berhasil mengambil riwayat LKPS');
+    const { prodiId } = req.params;
+    const history = await lkpsService.getLKPSHistoryByProdi(prodiId as string);
+    successResponse(res, history, 'Berhasil mengambil riwayat dokumen LKPS');
   } catch (error: any) {
-    console.error('Error getting history:', error);
-    return errorResponse(res, 'Gagal mengambil riwayat', 500);
+    errorResponse(res, error.message || 'Gagal mengambil riwayat dokumen', 500);
+  }
+};
+
+/**
+ * @swagger
+ * /api/lkps/available-periods/{prodiId}:
+ *   get:
+ *     summary: Mendapatkan daftar periode yang tersedia untuk Prodi
+ *     tags: [LKPS]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: prodiId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Daftar periode berhasil diambil
+ */
+export const getAvailablePeriodsHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { prodiId } = req.params;
+
+    if (!prodiId) {
+      errorResponse(res, 'Parameter prodiId tidak valid', 400);
+      return;
+    }
+
+    const periods = await lkpsService.getAvailablePeriods(prodiId as string);
+    successResponse(res, periods, 'Daftar periode berhasil diambil');
+  } catch (error: any) {
+    errorResponse(res, error.message || 'Gagal mengambil daftar periode', 500);
   }
 };
 
@@ -409,47 +447,47 @@ export const exportLKPSHandler = async (req: Request, res: Response) => {
       return errorResponse(res, 'Dokumen tidak ditemukan', 404);
     }
 
+    // 1. Build the sheet data map from database (latest web edits)
+    const sheetDataMap: Record<string, any[]> = {};
+    if (document.criterias && Array.isArray(document.criterias)) {
+      document.criterias.forEach((criteria: any) => {
+        if (criteria.sheets && Array.isArray(criteria.sheets)) {
+          criteria.sheets.forEach((sheet: any) => {
+            sheetDataMap[sheet.sheetName] = sheet.data;
+          });
+        }
+      });
+    }
+
+    // Determine the format (INFOKOM or TEKNIK)
+    const format = document.prodi?.category === 'INFOKOM' ? 'INFOKOM' : 'TEKNIK';
+
+    // 2. Fetch base buffer if the user originally uploaded an Excel file
+    let baseBuffer: Buffer | undefined;
     if (document.filePath) {
       try {
         const { storageProvider } = await import('../utils/storage');
-        const buffer = await storageProvider.downloadFile(document.filePath, 'lkps');
-        
-        // Remove password protection from the original uploaded file
-        const ExcelJS = require('exceljs');
-        const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.load(buffer);
-        workbook.eachSheet((sheet: any) => {
-          if (sheet.properties) {
-            delete sheet.properties.sheetProtection;
-          }
-          if (sheet.views) {
-            sheet.views = sheet.views.map((view: any) => ({ ...view, state: 'normal' }));
-          }
-        });
-        const unprotectedBuffer = await workbook.xlsx.writeBuffer();
-        
-        const encodedName = encodeURIComponent(document.originalFilename || 'LKPS.xlsx');
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedName}`);
-        
-        return res.send(unprotectedBuffer);
+        baseBuffer = await storageProvider.downloadFile(document.filePath, 'lkps');
       } catch (storageError) {
-        console.warn('File fisik LKPS tidak ditemukan di storage, mencoba generate ulang dari JSON...', storageError);
+        console.warn('File fisik LKPS tidak ditemukan di storage, akan fallback ke template default.', storageError);
       }
     }
 
-    if (!document.content) {
-      return errorResponse(res, 'Data dokumen tidak lengkap', 404);
-    }
-
+    // 3. Generate the injected Excel buffer
     const { generateLKPSExcel } = require('../exporters/lkps.exporter');
-    const buffer = await generateLKPSExcel(document.content);
+    // Jika sheetDataMap kosong, kita fallback ke document.content lama jika ada
+    const dataToInject = Object.keys(sheetDataMap).length > 0 ? sheetDataMap : (document.content || {});
     
-    const encodedName = encodeURIComponent(`LKPS_${document.prodi?.abbreviation || 'Export'}.xlsx`);
+    const finalBuffer = await generateLKPSExcel(dataToInject, baseBuffer, format);
+    
+    // 4. Send to user
+    const baseName = document.originalFilename || `LKPS_${document.prodi?.abbreviation || 'Export'}.xlsx`;
+    const encodedName = encodeURIComponent(baseName);
+    
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedName}`);
     
-    return res.send(buffer);
+    return res.send(finalBuffer);
   } catch (error: any) {
     console.error('Error exporting LKPS:', error);
     return errorResponse(res, 'Gagal mengekspor LKPS', 500);
@@ -637,6 +675,50 @@ export const completeSheetHandler = async (req: Request, res: Response) => {
     console.error('Error completing sheet:', error);
     const code = error.message.includes('tidak ditemukan') ? 404 : 500;
     return errorResponse(res, error.message || 'Gagal menandai sheet selesai', code);
+  }
+};
+
+export const getLKPSConfigAllHandler = async (req: Request, res: Response) => {
+  try {
+    const format = (req.query.format as LKPSFormat) || 'INFOKOM';
+    
+    const tableConfigs: Record<string, any> = {};
+    const allSheets = { ...LKPS_SHEETS_INFOKOM, ...LKPS_SHEETS_LAMTEKNIK };
+    for (const [key, config] of Object.entries(allSheets)) {
+      tableConfigs[key] = {
+        title: config.sheetTitle,
+        startRow: config.headerRows + 1,
+        startCol: 2,
+        keys: config.columns.map(c => c.key),
+        columnLabels: config.columns.map(c => c.label),
+        columns: config.columns.map((c, idx) => {
+          let type = 'text';
+          if (c.type === 'number') type = 'numeric';
+          else if (c.type === 'textarea') type = 'textarea';
+          else if (c.type === 'date') type = 'intl-date';
+          else if (c.type === 'boolean') type = 'checkbox';
+          else if (c.type === 'select') type = 'dropdown';
+          
+          return {
+            data: idx,
+            type,
+            ...(c.type === 'select' && c.options ? { source: c.options } : {})
+          };
+        }),
+      };
+    }
+
+    return successResponse(res, {
+      formats: {
+        INFOKOM: LKPS_SHEET_NAMES_INFOKOM,
+        TEKNIK: LKPS_SHEET_NAMES_LAMTEKNIK
+      },
+      tableConfigs,
+      criteria: LKPS_KRITERIA
+    }, 'Berhasil mengambil semua konfigurasi LKPS');
+  } catch (error: any) {
+    console.error('Error getting all LKPS config:', error);
+    return errorResponse(res, 'Gagal mengambil konfigurasi LKPS', 500);
   }
 };
 
@@ -1041,5 +1123,99 @@ export const deleteLKPSDocumentHandler = async (req: Request, res: Response) => 
       return errorResponse(res, error.message, 400);
     }
     return errorResponse(res, 'Gagal menghapus dokumen LKPS', 500);
+  }
+};
+
+export const getLKPSProgressHandler = async (req: Request, res: Response) => {
+  try {
+    const prodiId = req.params.prodiId as string;
+    
+    const prodi = await prisma.prodi.findUnique({
+      where: { id: prodiId },
+      select: { category: true }
+    });
+    
+    if (!prodi) {
+      return errorResponse(res, 'Prodi tidak ditemukan', 404);
+    }
+    
+    const format: LKPSFormat = (prodi.category === 'INFOKOM') ? 'INFOKOM' : 'TEKNIK';
+    
+    const latestDoc = await prisma.documentLKPS.findFirst({
+      where: { prodiId },
+      orderBy: { versi: 'desc' },
+      include: {
+        criterias: {
+          include: {
+            sheets: true
+          }
+        }
+      }
+    });
+    
+    const sheetProgressMap: Record<string, number> = {};
+    if (latestDoc) {
+      latestDoc.criterias.forEach((criteria: any) => {
+        criteria.sheets.forEach((sheet: any) => {
+          let isFilled = false;
+          if (sheet.isCompleted) {
+            isFilled = true;
+          } else if (sheet.data) {
+            try {
+              const parsedData = typeof sheet.data === 'string' ? JSON.parse(sheet.data) : sheet.data;
+              if (Array.isArray(parsedData) && parsedData.length > 0) {
+                isFilled = true;
+              } else if (typeof parsedData === 'object' && Object.keys(parsedData).length > 0) {
+                // Check if any value is actually present
+                const hasValue = Object.values(parsedData).some((v: any) => {
+                   if (typeof v === 'object' && v !== null) {
+                     return Object.values(v).some(inner => inner !== '' && inner !== null);
+                   }
+                   return v !== '' && v !== null;
+                });
+                isFilled = hasValue;
+              }
+            } catch (e) {}
+          }
+          sheetProgressMap[sheet.sheetName] = isFilled ? 100 : 0;
+        });
+      });
+    }
+
+    const { LKPS_KRITERIA } = await import('../config/lkps.config');
+    const sheetsDict = getSheetsByFormat(format);
+    
+    const criterias: any[] = [];
+    
+    for (const [key, criteriaDef] of Object.entries(LKPS_KRITERIA)) {
+      const sheetsForCriteria = Object.values(sheetsDict).filter(s => s.criteriaCode === key);
+      
+      if (sheetsForCriteria.length === 0) continue;
+      
+      const subsections = sheetsForCriteria.map(s => {
+        const progress = sheetProgressMap[s.sheetName] || 0;
+        return {
+          id: s.sheetName,
+          name: s.sheetTitle,
+          progress
+        };
+      });
+      
+      const totalProgress = subsections.reduce((sum, sub) => sum + sub.progress, 0);
+      const avgProgress = subsections.length > 0 ? Math.round(totalProgress / subsections.length) : 0;
+      
+      criterias.push({
+        id: key,
+        code: `C.${key}`,
+        name: criteriaDef.name,
+        progress: avgProgress,
+        subsections
+      });
+    }
+
+    return successResponse(res, { criterias }, 'Berhasil mendapatkan progres LKPS');
+  } catch (error: any) {
+    console.error('Error getting LKPS progress:', error);
+    return errorResponse(res, 'Gagal mendapatkan progres LKPS', 500);
   }
 };

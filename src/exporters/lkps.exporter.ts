@@ -1,57 +1,67 @@
 import ExcelJS from 'exceljs';
 import path from 'path';
 import fs from 'fs';
+import { LKPSFormat, getSheetConfig } from '../config/lkps.config';
 
-export const generateLKPSExcel = async (data: any): Promise<Buffer> => {
+export const generateLKPSExcel = async (
+  data: Record<string, any[]>, 
+  baseBuffer?: Buffer,
+  format: LKPSFormat = 'INFOKOM'
+): Promise<Buffer> => {
   const templatePath = path.resolve(__dirname, '../../../laporan-kinerja-program-studi-aps-akademik-vokasi-dan-psppi.xlsx');
   
-  if (!fs.existsSync(templatePath)) {
-    throw new Error('Template file not found at ' + templatePath);
-  }
-
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(templatePath);
   
-  // --- Inject Data into Sheet 3a1 ---
-  const mhsRegulerSheet = workbook.getWorksheet('3a1');
-  if (mhsRegulerSheet && data.mhs_reguler) {
-    // Standard template usually starts data at row 7 or 8. Let's find the first empty data row.
-    // Based on the provided template, data starts at row 7.
-    data.mhs_reguler.forEach((item: any, index: number) => {
-      const rowNumber = 7 + index; 
-      const row = mhsRegulerSheet.getRow(rowNumber);
+  if (baseBuffer) {
+    await workbook.xlsx.load(baseBuffer as any);
+  } else {
+    if (!fs.existsSync(templatePath)) {
+      throw new Error('Template file not found at ' + templatePath);
+    }
+    await workbook.xlsx.readFile(templatePath);
+  }
+
+  // Inject data into each sheet based on dynamic configuration
+  for (const sheetName of Object.keys(data)) {
+    const sheetData = data[sheetName];
+    if (!Array.isArray(sheetData) || sheetData.length === 0) continue;
+
+    const worksheet = workbook.getWorksheet(sheetName);
+    if (!worksheet) continue;
+
+    const sheetConfig = getSheetConfig(sheetName, format);
+    if (!sheetConfig) continue;
+
+    // Start row based on header rows config (assuming data starts exactly after header)
+    const startRow = sheetConfig.headerRows + 1;
+    
+    sheetData.forEach((item: any, index: number) => {
+      const rowNumber = startRow + index;
+      const row = worksheet.getRow(rowNumber);
       
-      row.getCell(2).value = item.tahun;
-      row.getCell(3).value = item.dayaTampung;
-      row.getCell(4).value = item.pendaftar;
-      row.getCell(5).value = item.lulusSeleksi;
-      row.getCell(6).value = item.mhsBaruReguler;
-      row.getCell(7).value = item.mhsBaruTransfer;
-      row.getCell(8).value = item.mhsAktifReguler;
-      row.getCell(9).value = item.mhsAktifTransfer;
+      sheetConfig.columns.forEach((colConfig, colIndex) => {
+        const excelColIndex = colIndex + 1; // 1-indexed in ExcelJS
+        
+        // Skip writing formulas (autoCalculated) so we don't break existing Excel equations
+        if (colConfig.autoCalculated) return;
+        
+        if (item[colConfig.key] !== undefined && item[colConfig.key] !== null) {
+          row.getCell(excelColIndex).value = item[colConfig.key];
+        }
+      });
       row.commit();
     });
   }
 
-  // --- Inject Data into Sheet 3a2 ---
-  const mhsAsingSheet = workbook.getWorksheet('3a2');
-  if (mhsAsingSheet && data.mhs_asing) {
-    data.mhs_asing.forEach((item: any, index: number) => {
-      const rowNumber = 7 + index;
-      const row = mhsAsingSheet.getRow(rowNumber);
-      
-      row.getCell(2).value = item.prodi;
-      row.getCell(3).value = item.mhsAsingFullTimeTS2;
-      row.getCell(4).value = item.mhsAsingFullTimeTS1;
-      row.getCell(5).value = item.mhsAsingFullTimeTS;
-      row.getCell(6).value = item.mhsAsingPartTimeTS2;
-      row.getCell(7).value = item.mhsAsingPartTimeTS1;
-      row.getCell(8).value = item.mhsAsingPartTimeTS;
-      row.commit();
-    });
-  }
-
-  // Add more injection points here as we expand the parser...
+  // Remove password protection globally to ensure the exported file is editable
+  workbook.eachSheet((sheet: any) => {
+    if (sheet.properties) {
+      delete sheet.properties.sheetProtection;
+    }
+    if (sheet.views) {
+      sheet.views = sheet.views.map((view: any) => ({ ...view, state: 'normal' }));
+    }
+  });
 
   const buffer = await workbook.xlsx.writeBuffer();
   return buffer as unknown as Buffer;

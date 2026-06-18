@@ -3,6 +3,7 @@ import { DocumentStatus } from '@prisma/client';
 import { LKPS_KRITERIA, getSheetConfig, LKPSFormat } from '../config/lkps.config';
 import { validateSheetData } from '../validators/lkps.validator';
 import { generateEarlyWarnings } from './notification.service';
+import { syncAllInstitusiToDocument } from './institusi.service';
 
 export const createLKPSDocument = async (
   prodiId: string,
@@ -38,6 +39,30 @@ export const createLKPSDocument = async (
       periode,
     } as any,
   });
+};
+
+export const getLKPSHistory = async (prodiId: string): Promise<any[]> => {
+  return await prisma.documentLKPS.findMany({
+    where: { prodiId },
+    orderBy: { createdAt: 'desc' },
+  });
+};
+
+/**
+ * Mendapatkan daftar periode yang tersedia untuk sebuah Prodi
+ */
+export const getAvailablePeriods = async (prodiId: string): Promise<string[]> => {
+  const docs = await prisma.documentLKPS.findMany({
+    where: { 
+      prodiId,
+      status: DocumentStatus.DRAFT
+    },
+    select: { periode: true },
+    distinct: ['periode'],
+  });
+
+  const periods = new Set(docs.map((d) => d.periode).filter((p): p is string => p !== null));
+  return Array.from(periods).sort().reverse();
 };
 
 export const getLKPSHistoryByProdi = async (prodiId: string) => {
@@ -521,6 +546,9 @@ export const importLKPS = async (
 
     // 3. Create Sheet Data (format-aware)
     await createMultipleSheetsData(document.id, parsedData, tx, format);
+
+    // 4. Auto-sync institusi data to newly created document
+    await syncAllInstitusiToDocument(document.id, tx);
 
     generateEarlyWarnings(prodiId).catch(err => console.error('Failed to trigger early warnings after LKPS import:', err));
     return document;

@@ -208,7 +208,17 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
       where: { id: prodiId },
       include: {
         accreditation: true,
-        documentLKPS: { orderBy: { updatedAt: 'desc' }, take: 1 },
+        documentLKPS: { 
+          orderBy: { versi: 'desc' }, 
+          take: 1,
+          include: {
+            criterias: {
+              include: {
+                sheets: true
+              }
+            }
+          }
+        },
         documentLED: { orderBy: { versi: 'desc' }, take: 1 },
       },
     }),
@@ -250,11 +260,36 @@ export const getDashboardByProdi = async (prodiId: string): Promise<DashboardDat
   let lkpsProgress = 0;
   if (lkpsDoc?.status === 'FINAL') {
     lkpsProgress = 100;
-  } else if (lkpsDoc && (lkpsDoc as any).content) {
+  } else if (lkpsDoc && (lkpsDoc as any).criterias) {
     const totalSheets = getSheetNamesByFormat(format).length;
-    const content = typeof (lkpsDoc as any).content === 'string' ? JSON.parse((lkpsDoc as any).content) : (lkpsDoc as any).content;
-    const filledSheets = Object.values(content).filter((sheetData: any) => Array.isArray(sheetData) && sheetData.length > 0).length;
-    lkpsProgress = totalSheets > 0 ? Math.round((filledSheets / totalSheets) * 100) : 0;
+    let filledSheetsCount = 0;
+    
+    (lkpsDoc as any).criterias.forEach((criteria: any) => {
+      criteria.sheets.forEach((sheet: any) => {
+        let isFilled = false;
+        if (sheet.isCompleted) {
+          isFilled = true;
+        } else if (sheet.data) {
+          try {
+            const parsedData = typeof sheet.data === 'string' ? JSON.parse(sheet.data) : sheet.data;
+            if (Array.isArray(parsedData) && parsedData.length > 0) {
+              isFilled = true;
+            } else if (typeof parsedData === 'object' && Object.keys(parsedData).length > 0) {
+              const hasValue = Object.values(parsedData).some((v: any) => {
+                if (typeof v === 'object' && v !== null) {
+                  return Object.values(v).some(inner => inner !== '' && inner !== null);
+                }
+                return v !== '' && v !== null;
+              });
+              isFilled = hasValue;
+            }
+          } catch (e) {}
+        }
+        if (isFilled) filledSheetsCount++;
+      });
+    });
+    
+    lkpsProgress = totalSheets > 0 ? Math.round((filledSheetsCount / totalSheets) * 100) : 0;
     if (lkpsProgress > 99) lkpsProgress = 99;
   }
 
@@ -539,6 +574,15 @@ export const getInstitusiDashboardSummary = async () => {
       if (lkpsProgress > 99) lkpsProgress = 99;
     }
 
+    let isSafePeriod = false;
+    if (prodi.accreditation?.endDate) {
+      const msInYear = 1000 * 60 * 60 * 24 * 365.25;
+      const yearsUntilExpiry = (prodi.accreditation.endDate.getTime() - Date.now()) / msInYear;
+      if (yearsUntilExpiry > 1.5) {
+        isSafePeriod = true;
+      }
+    }
+
     return {
       id: prodi.id,
       fullname: prodi.fullname,
@@ -558,6 +602,7 @@ export const getInstitusiDashboardSummary = async () => {
       },
       simulationScore: score,
       status: score >= 361 ? 'completed' : 'in_progress',
+      isSafePeriod,
     };
   });
 };

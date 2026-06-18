@@ -98,3 +98,17 @@ export const deleteMonitoringHandler = async (req: Request, res: Response) => {
     return errorResponse(res, error.message, 400);
   }
 };
+
+export const getMonitoringSummaryHandler = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return errorResponse(res, 'Pengguna tidak terautentikasi', 401);
+    }
+
+    const result = await monitoringService.getMonitoringSummary(userId);
+    return successResponse(res, result, 'Ringkasan monitoring berhasil diambil');
+  } catch (error: any) {
+    return errorResponse(res, error.message, 400);
+  }
+};

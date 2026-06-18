@@ -156,3 +156,26 @@ export const deleteMonitoringEvaluation = async (id: string, userId: string) => 
   await prisma.monitoringEvaluation.delete({ where: { id } });
   return true;
 };
+
+export const getMonitoringSummary = async (userId: string) => {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    throw new Error('Pengguna tidak ditemukan');
+  }
+
+  let filter = {};
+  if (user.role !== Role.SUPER_ADMIN && user.role !== Role.PIMPINAN) {
+    const prodis = await getProdiForUser(userId);
+    const prodiIds = prodis.map(p => p.id);
+    filter = { prodiId: { in: prodiIds } };
+  }
+
+  return prisma.monitoringEvaluation.findMany({
+    where: filter,
+    orderBy: { createdAt: 'desc' },
+    include: {
+      createdBy: { select: { id: true, name: true, role: true } },
+      prodi: { select: { fullname: true } },
+    },
+  });
+};
